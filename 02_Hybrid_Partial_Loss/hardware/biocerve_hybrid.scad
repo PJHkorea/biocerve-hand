@@ -11,9 +11,13 @@ $fn = 50; // 5개 손가락 및 하이브리드 통형 손바닥 동시 연산 �
 // =================================================================
 // 배열 인덱스 주소: [0:엄지(Thumb), 1:검지(Index), 2:중지(Middle), 3:약지(Ring), 4:새끼(Pinky)]
 
-// 🛡️ [핵심 가드] 1: 손가락 소실 (의수 기믹 출력), 0: 생체 존치 (손바닥 관통 홀 우회)
-// 환자의 잔존 조건에 맞춰 아래 수치 스위치만 0 또는 1로 조절하면 도면이 실시간 재빌드됩니다.
-finger_status =; // 예시: 중지만 멀쩡하게 살아있고 남은 마디는 소실된 환자 대응
+// 🛡️ [핵심 가드 스위치]
+//  - 1: 손가락 소실 부위 ──► 의수 기계 관절 및 텐던 메커니즘 자동 빌드업
+//  - 0: 실제 생체 손가락 ──► 모터 링크 소멸 및 15도 인체공학적 경사 관통 홀(Bypass) 타공
+// 
+// 💡 [사용법]: 환자의 잔존 신체 조건에 맞춰 아래 5개 스위치를 0 또는 1로 수정 후 저장(F5)하십시오.
+// (디폴트 값: 중지[Index 2]만 완벽하게 살아있고, 나머지 4개 손가락 마디가 소실된 환자 대응 프로필)
+finger_status =; 
 
 // 🦴 각 손가락별 실제 생체 마디 길이 데이터셋 (mm 단위 실측치)
 proximal_lengths = [32.0, 35.0, 40.0, 37.0, 30.0]; 
@@ -24,10 +28,10 @@ distal_lengths   = [22.0, 20.0, 22.0, 21.0, 18.0];
 finger_thickness = [1.20, 0.95, 1.00, 0.95, 0.80]; 
 
 // =================================================================
-// [2] 글로벌 공통 제어 변수 (Global Constraints)
+// [2] 글로벌 공통 제어 변수 (Global Hardware Constraints)
 // =================================================================
 base_pip_dia = 5.8;  // 기준 구슬 지름 (중지 스케일 기준 표준 기하학 상수)
-clearance    = 0.2;  // 3D 프린트 열수축 대응 내부 구동 공차 유격 (+0.2mm)
+clearance    = 0.2;  // 3D 프린트 필라멘트 수축 대응 내부 구동 공차 유격 (+0.2mm)
 wall_thick   = 2.0;  // 다이니마 와이어 장력을 방어하기 위한 최소 외벽 마진 (2.0mm)
 tendon_dia   = 1.5;  // 보풀 가드 통과용 고강도 섬유선 구멍 지름
 
@@ -74,9 +78,21 @@ module hybrid_hand_system() {
             } else {
                 // 🎯 [생체 손가락 보존 자리]: 인간 고유 촉각 보존을 위한 타원형 경사 슬롯 타공
                 // 착용성 극대화를 위해 앞쪽으로 15도 기울어지게 설계하여 쓸림 및 피 안 통함 현상 원천 차단
-                translate([i * 18, 5, -palm_thick - 2])
-                    rotate([0, -15, 0]) // 15도 인체공학적 경사각 투하
-                        cylinder(h = palm_thick + 6, d = f_pip_dia + 4.5, $fn = 30); // 사방 +2.25mm 공차 마진 확보
+                translate([i * 18, 5, -palm_thick - 2]) {
+                    rotate([0, -15, 0]) { // 15도 인체공학적 경사각 투하
+                        
+                        // [메인 슬롯 관통] 사방 +2.25mm 공차 마진 확보
+                        cylinder(h = palm_thick + 6, d = f_pip_dia + 4.5, $fn = 30); 
+                        
+                        // 🖨️ [서포터 차단 챔퍼 - 하단 림(Rim)] 45도 경사를 통한 출력 초기 안착 스킨 형성
+                        translate([0, 0, 0.5])
+                            cylinder(h = 1.5, d1 = f_pip_dia + 4.5, d2 = f_pip_dia + 7.5, $fn = 30);
+                            
+                        // 🖨️ [서포터 차단 챔퍼 - 상단 림(Rim)] 오버행 붕괴 방지용 가상 브릿징 지지대 주조
+                        translate([0, 0, palm_thick + 3.5])
+                            cylinder(h = 1.5, d1 = f_pip_dia + 7.5, d2 = f_pip_dia + 4.5, $fn = 30);
+                    }
+                }
             }
         }
     }
@@ -119,12 +135,21 @@ module generate_biometric_finger(id, angle) {
     difference() {
         // 첫째 마디 기본 바디 골격
         translate([-f_outer_radius, -5, 0]) cube([f_outer_radius * 2, 10, p_len]);
-        // 메인 구동 텐던 수직 관통 홀
-        translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -1])
-            cylinder(h = p_len + 2, d = tendon_dia);
+        
+        // 메인 구동 텐던 수직 관통 홀 및 보풀 방지 실드 통합 가공
+        union() {
+            // 텐던 관통 메인 터널
+            translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -1])
+                cylinder(h = p_len + 2, d = tendon_dia);
+            
+            // 🖨️ [리밍 가이드 챔퍼] 손바닥판에서 첫째 마디로 진입하는 와이어 마찰 저항 극소화
+            // 출력 후 1.5mm~2.0mm 드릴 비트로 리밍(Reaming)하기 용이하도록 하단 인입구 확장 수식 적용
+            translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -0.1])
+                cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
+        }
     }
-    
-    // -------------------------------------------------------------
+
+       // -------------------------------------------------------------
     // [B] 중간 관절(PIP) 상단 구슬 코어 + 중간 마디 프레임
     // -------------------------------------------------------------
     translate([0, 0, p_len])
@@ -156,11 +181,21 @@ module generate_biometric_finger(id, angle) {
                     // 중간 마디 뼈대 연장 프레임 바디
                     translate([-f_outer_radius, -5, 0]) cube([f_outer_radius * 2, 10, m_len]);
                     
-                    // [🛑 물리 가드 2: Wedge-Lock 역방향 스토퍼 홈 가공]
+                    // [🛑 물리 가드 2: Wedge-Lock 역방향 스토퍼 홈 가공 및 슬립 방지 보강]
+                    // 구동 유격 파싱 진행
                     sphere(d = pip_track_width + 0.05);
-                    rotate([0, 45, 0]) 
-                        translate([0, -(pip_track_width + 1) / 2, -(pip_track_width + 1) / 2]) 
+                    
+                    // 🖨️ [Wedge-Lock 슬립 방지 가드] 
+                    // 차단 턱 절벽 벽면이 오버행 처짐으로 뭉개져 잠금 기믹이 미끄러지는 현상을 선방어
+                    // 사선 큐브 차집합 연산 시, 외곽 마진(+0.15mm)과 모서리 챔퍼 효과를 더해 단단히 잠기도록 형상 고도화
+                    rotate([0, 45, 0]) {
+                        translate([0, -(pip_track_width + 1) / 2, -(pip_track_width + 1) / 2]) {
                             cube([pip_track_width + 1, pip_track_width + 1, pip_track_width + 1]);
+                        }
+                        // 스토퍼 절벽 단면 끝자락에 오버행 처짐을 흡수할 기하학적 미세 모따기 큐브 추가 결합
+                        translate([0, -(pip_track_width + 1.5) / 2, pip_track_width / 2 - 0.15])
+                            cube([pip_track_width + 1.5, pip_track_width + 1.5, 1.5]);
+                    }
                     
                     // 🛠️ 이중 나팔꽃 보풀 가드 (PIP 측 깔때기형 입구)
                     union() {
@@ -197,6 +232,7 @@ module generate_biometric_finger(id, angle) {
         }
 }
 
+
 // 최종 손끝 마디 및 미끄럼 방지 패드 가이드 슬롯 공통 코어 모듈
 module distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, f_outer_radius) {
     difference() {
@@ -207,11 +243,17 @@ module distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, f_outer_radi
             translate([0, 0, d_len - 2]) sphere(r = f_outer_radius * 0.8);
         }
         
-        // DIP 하단 소켓 및 역방향 락인 스토퍼 설계
+        // DIP 하단 소켓 및 역방향 락인 스토퍼 설계 (Wedge-Lock 슬립 방지 보강 일체화)
         sphere(d = dip_track_width + 0.05);
-        rotate([0, 45, 0]) 
-            translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) 
+        rotate([0, 45, 0]) {
+            translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) {
                 cube([dip_track_width + 1, dip_track_width + 1, dip_track_width + 1]);
+            }
+            // 🖨️ [DIP Wedge-Lock 슬립 방지 가드] 
+            // 3D 프린팅 시 손끝 소켓 내부에 누적되는 오버행 처짐을 기하학적으로 흡수하여 차단 턱 잠금 기능 보호
+            translate([0, -(dip_track_width + 1.5) / 2, dip_track_width / 2 - 0.15])
+                cube([dip_track_width + 1.5, dip_track_width + 1.5, 1.5]);
+        }
                 
         // 🛠️ 이중 나팔꽃 보풀 가드 (DIP 측 깔때기형 입구)
         union() {
@@ -226,3 +268,4 @@ module distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, f_outer_radi
             cube([f_outer_radius * 2, 2, d_len / 2]);
     }
 }
+
