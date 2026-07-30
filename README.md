@@ -93,7 +93,10 @@ repository_root/
     │   ├── 📜 README.md                    # 슬롯 서포터 차단(Support Blocker) 및 후가공 가이드
     │   └── 📐 biocerve_hybrid.scad         # 동적 마스킹 및 15도 인체공학적 경사 관통 홀 도면
     └── 📁 software/
-        └──  (트랙 1 통제 커널과 크로스 컴파일 연동 및 생체 미러링 팩터 동적 주입 인터페이스)
+        ├── 📜 README.md                    # 생체 신호 미러링 가이드 및 셋업 매뉴얼
+        ├── ⚙️ biocerve_hybrid_core.h        # 미러링 소용돌이 우회장(Vorticity) 통합 제어 헤더
+        └── 🔌 biocerve_hybrid_prototype.cpp  # 12비트 타이머 바인딩 및 1kHz 실시간 미러링 실행 파일
+
 ```
 
 ---
