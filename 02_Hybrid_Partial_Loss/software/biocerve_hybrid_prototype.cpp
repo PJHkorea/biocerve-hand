@@ -107,21 +107,6 @@ int main() {
     std::cout << "=================================================================\n\n";
 
     // ── 3단계: 1ms 주기 실시간 타이머 인터럽트 파이프라인 가상 주행 검증 ──
-    // 가속 엔진의 누적 공분산 및 사선 우회장 안정성을 입증하기 위해 3틱(3ms) 루프 시뮬레이션
-    for (int tick = 0; tick < 3; tick++) {
-        std::cout << "⏱️ [TIMER INTERRUPT LOOP - TICK #" << tick + 1 << " ms]\n";
-        
-        // 실시간 스캔, 자율 사멸(Apoptosis), 미러링 융합, 12비트 타이머 분배 동시 집행
-        run_hybrid_realtime_pipeline();
-    }
-    
-    std::cout << "[SYSTEM REPO] 하이브리드 미러링 파이프라인 가동성 시뮬레이션 성공.\n";
-    std::cout << "              '-O2' / '-O3' 최적화 빌드가 완전히 준비되었습니다.\n";
-    
-    return 0;
-}
-
-    // ── 3단계: 1ms 주기 실시간 타이머 인터럽트 파이프라인 가상 주행 검증 ──
     // 가속 엔진의 누적 공분산 및 사선 우회장 안정성을 입증하기 위해 3틱(3ms) 루프 시뮬레이션 전개
     for (int tick = 0; tick < 3; tick++) {
         std::cout << "⏱️ [TIMER INTERRUPT LOOP - TICK #" << tick + 1 << " ms]\n";
@@ -138,3 +123,4 @@ int main() {
     
     return 0;
 }
+
