@@ -68,6 +68,46 @@ CellNode32    muscle_grid_nodes[NUM_GRID_CHANNELS]; // 3차 업그레이드: 선
 CellNode32    gyro_twist_node;                     // 내재화된 손목 자이로용 독립 1층 셀
 MeshCore32    spinal_fusion_center;                // 2층 위상 기하학 공간 융합 센터
 
+// =================================================================
+// [3-2. 3차 업그레이드: 하드웨어 타이머 분배 핀 정의 (Teensy / 아두이노 에코시스템 기반)]
+// =================================================================
+// 전역 매크로 상수를 가져와 5개 독립 타이머 모듈의 물리적 PWM 출력 핀 번호를 선언합니다.
+const int MOTOR_PINS[NUM_FINGERS] = {2, 3, 4, 5, 6}; 
+
+/**
+ * @brief 하드웨어 물리 타이머 및 12비트 레졸루션 초기화 가동
+ */
+void setup_hardware_timers() {
+    for (int i = 0; i < NUM_FINGERS; i++) {
+        // MCU 물리적 핀 모드를 출력으로 고정
+        pinMode(MOTOR_PINS[i], OUTPUT);
+        
+        // 중요: 서보 모터는 50Hz 제어 주기를 가집니다.
+        // 이 타이머 할당 주파수를 고정해야 알고리즘의 1ms 연산과 충돌(지터)이 나지 않습니다.
+        analogWriteFrequency(MOTOR_PINS[i], 50); 
+        
+        // 12비트 타이머 레졸루션 확장 (0 ~ 4095 정밀 제어 블록 가동)
+        // 텐던 와이어의 미세 인장 길이를 소용돌이 변수 수준으로 벼려내기 위함입니다.
+        analogWriteResolution(12); 
+    }
+}
+
+/**
+ * @brief 계산된 펄스 마이크로초(us)를 12비트 타이머 듀티 사이클 값으로 변환하여 물리적 출력
+ * @param out_pwms 1차 커널 매핑 함수에서 1000us ~ 2000us 범위로 계산 완료된 PWM 배열
+ */
+void write_fluxmesh_timers(int* out_pwms) {
+    for (int i = 0; i < NUM_FINGERS; i++) {
+        // 50Hz 기준: 20ms(20000us)가 전체 주기(4095 스텝)
+        // out_pwms[i]는 1000us ~ 2000us 범위이므로 이를 12비트 듀티 사이클로 정수 사칙연산 환산
+        // 수식: (Duty_us / 20000us) * 4095
+        int duty_cycle_12bit = (out_pwms[i] * 4095) / 20000;
+        
+        // 하드웨어 레지스터 타이머 버퍼에 직접 라이팅 (간섭 없이 동시 핀 분배 완료)
+        analogWrite(MOTOR_PINS[i], duty_cycle_12bit);
+    }
+}
+
 
 // =================================================================
 // [4. 가속 엔진 초기화 함수]
@@ -137,6 +177,7 @@ float process_peripheral_cell32(CellNode32* self, float raw_signal, float cos_t,
 }
 
 
+
 // =================================================================
 // [6. 2층: 8채널 선형 격차 기반 소용돌이 우회장(Curl Rerouting) 융합 커널 함수]
 // =================================================================
@@ -199,7 +240,7 @@ MeshVector32 process_spinal_mesh32(MeshCore32* core, float* muscle_inputs, float
     float Gradient_Y = Flexor_Gradient + Extensor_Gradient;
 
 
-       // ── 3) [신의 한 수: 자이로스코프 내재화의 공간 에너지 주입 메커니즘] ──
+         // ── 3) [신의 한 수: 자이로스코프 내재화의 공간 에너지 주입 메커니즘] ──
     // 만약 근육 신호가 감쇄(피로)하더라도, 내재화된 자이로의 물리 각속도가 공간 펌프 역할을 수행함
     float internal_gyro_pump = (gyro_input != FAILSAFE_REJECT) ? gyro_input : 0.0f;
 
@@ -217,6 +258,7 @@ MeshVector32 process_spinal_mesh32(MeshCore32* core, float* muscle_inputs, float
     return output_vector;
 }
 
+
 // =================================================================
 // [7. 실시간 동시 스캔 메인 파이프라인 (1ms 인터럽트 루틴) - 전반부]
 // =================================================================
@@ -224,7 +266,7 @@ void run_fluxmesh_realtime_pipeline() {
     // 3차 업그레이드: 실제 아랫팔 굴근/신근 줄기를 따라 수집되는 8채널 원시 전압 데이터 (ADC/SPI 바인딩 가상화)
     // [0~3: 굴근 라인 / 4~7: 신근 라인]
     float raw_muscle_sensors[NUM_GRID_CHANNELS] = { 
-        120.4f, 135.1f, 140.2f, 145.8f,  // 🔴 굴근 스트립 (Proximl -> Wrist)
+        120.4f, 135.1f, 140.2f, 145.8f,  // 🔴 굴근 스트립 (Proximal -> Wrist)
         40.2f,  45.8f,  50.1f,  55.3f    // 🟠 신근 스트립 (Proximal -> Wrist)
     }; 
     float raw_internal_gyro = 1.85f; // 내재화 자이로 센서 실시간 스캔 각속도 값 (rad/s)
@@ -252,7 +294,8 @@ void run_fluxmesh_realtime_pipeline() {
     filtered_gyro = process_peripheral_cell32(&gyro_twist_node, raw_internal_gyro, cos_t, sin_t);
 
 
-       // ── Step 2: [LAYER 2] 2층 융합 센터로 데이터 투하 및 소용돌이 공간 변위 도출 ──
+
+        // ── Step 2: [LAYER 2] 2층 융합 센터로 데이터 투하 및 소용돌이 공간 변위 도출 ──
     MeshVector32 dynamic_control_v = process_spinal_mesh32(&spinal_fusion_center, filtered_muscle, filtered_gyro);
 
     // ── Step 3: [MOTOR INTERFACE] 도출된 소용돌이 변위를 1차 모터 피드백 커널과 결합 및 최종 매핑 ──
@@ -267,6 +310,11 @@ void run_fluxmesh_realtime_pipeline() {
     // 2층 메쉬 코어에서 솟구친 소용돌이 변위(dy)를 살아있는 5지 노드로 사선 우회(Reroute) 평탄화 매핑
     fluxmesh_motor_mapping_execute(my_bio_fingers, dynamic_control_v.y, final_output_pwms);
 
+    // ── Step 3-2: 🎯 [🛠️ HARDWARE DRIVER BINDING: 물리 타이머 출력 집행] ──
+    // 우리가 정립한 12비트 극상 정밀도(0~4095 스텝) 정수 비례식 드라이버 엔진 가동
+    // 계산 완료된 final_output_pwms를 50Hz 하드웨어 독립 카운터 레지스터 버퍼에 동시 인가
+    write_fluxmesh_timers(final_output_pwms);
+
     // ── Step 4: [TELEMETRY] 시스템 상태 데이터 실시간 시리얼 모니터링 출력 ──
     std::cout << "[TRACKING] 중력장 깊이: " << spinal_fusion_center.depth 
               << " | 소용돌이 벡터 X(손목): " << dynamic_control_v.x 
@@ -280,6 +328,7 @@ void run_fluxmesh_realtime_pipeline() {
               << " 새끼: " << final_output_pwms[FIN_PINKY] << "ms\n\n";
 }
 
+
 // =================================================================
 // [8. 시스템 메인 엔트리 포인트 (Main Runtime)]
 // =================================================================
@@ -289,6 +338,10 @@ int main() {
     
     // 2. 1차 청사진의 해부학적 가중치 배정(엄지 1.2, 검지 1.1 등) 시스템 구동
     fluxmesh_motor_init(my_bio_fingers);
+    
+    // 3차 통합 마감: 🎯 [HARDWARE INITIALIZATION: 물리 타이머 및 12비트 레졸루션 초기화]
+    // 핀 모드 출력 설정 및 50Hz 제어 주기를 하드웨어 타이머 레지스터 버퍼에 부팅 즉시 고정 인가
+    setup_hardware_timers();
     
     std::cout << "\n--- BioCerve 8채널 선형 격자 스마트 스킨 & 모터 피드백 루프 실시간 스캔 시작 (1kHz) ---\n";
     
@@ -301,3 +354,4 @@ int main() {
     std::cout << "[SYSTEM] 시뮬레이션 파이프라인 가동성 검증 성공. 프로덕션 빌드가 준비되었습니다.\n";
     return 0;
 }
+
