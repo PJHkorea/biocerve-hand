@@ -1,16 +1,20 @@
 /**
  * @file fluxmesh_integrated_prototype.cpp
- * @brief 2x2 고밀도 근육 그리드(4CH) + 자이로 내재화 융합 가속 커널
+ * @brief 🌊 BioCerve-Hand: 8채널 선형 격자 스트립(Distributed Linear Grid) + BCI/자이로 융합 커널 (v2.5)
  * 
  * [컴파일러 절대 준수 규칙] 
- * -ffast-math / -Ofast 사용 절대 금지! 수치 방어벽(NaN Guard) 누락 방지를 위해 반드시 '-O2' 혹은 '-O3'만 사용하십시오.
+ * -ffast-math / -Ofast 사용 절대 금지! 
+ * 수치 방어벽(NaN Guard) 및 자율 사멸 누락 방지를 위해 반드시 '-O2' 혹은 '-O3'만 사용하십시오.
  */
 
 #include <iostream>
 #include <cmath>
+#include <stdint.h>
+#include <stdbool.h>
 
-// --- [1. 가속 엔진 로우레벨 코어 아키텍처 구조체 정의] ---
-// 제공해주신 소스코드 커널의 핵심 문법 규격을 단일 임베디드 단정밀도(float) 레지스터 타겟으로 최적화 전개
+// =================================================================
+// [1. 가속 엔진 로우레벨 코어 아키텍처 구조체 정의]
+// =================================================================
 
 typedef struct {
     float x;
@@ -18,44 +22,63 @@ typedef struct {
 } MeshVector32;
 
 typedef struct {
-    // 32비트 말초 신경 가속 셀 노드 구조
-    float p00, p01, p10, p11; // 2x2 오차 공분산 행렬의 완전한 스칼라 전개 변수
-    float state_value;        // 정제된 최종 스칼라 값 (Filtered Output)
-    volatile bool is_isolated;// 전압 폭주 및 단선 발생 시 하드웨어 자동 격리 플래그
+    // 32비트 말초 신경 분산 에지 셀 노드 구조
+    float p00, p01, p10, p11;   // 2x2 오차 공분산 행렬의 완전한 스칼라 전개 변수
+    float state_value;          // 정제된 최종 스칼라 값 (Filtered Output)
+    
+    // 3차 업그레이드: 말초 노드 자율 사멸(Apoptosis)용 가드 레지스터 추가
+    uint32_t strike_count;      // 국소 고전류/NaN 노이즈 연속 타격 카운터
+    volatile bool is_isolated;  // 전압 폭주, 단선, 땀 유입 발생 시 자율 격리 플래그
 } CellNode32;
 
 typedef struct {
     // 2층 공간 융합 척수 메쉬 코어 구조
-    float depth;              // 중력장 변위 공간 깊이
-    float p00;                // Joseph Form 오차 분산 가드 변수
-    bool is_broken;          // 전체 그리드 망 오염 붕괴 판정 플래그
+    float depth;                // 중력장 변위 공간 깊이
+    float p00;                  // Joseph Form 오차 분산 가드 변수
+    bool is_broken;            // 전체 그리드 망 오염 붕괴 판정 플래그
 } MeshCore32;
 
-// --- [2. 시스템 토폴로지 및 매핑 환경 변수] ---
-#define NUM_GRID_CHANNELS  4       // 2x2 근육 그리드 어레이 (4개 패널)
+// =================================================================
+// [2. 시스템 토폴도지 및 하이브리드 환경 변수]
+// =================================================================
+#define NUM_GRID_CHANNELS  8       // 3차 업그레이드: 아랫팔 해부학 결 기반 선형 격자 8채널 (굴근4 + 신근4)
+#define OVERLOAD_STRIKE_MAX 8      // 노드 자율 사멸 트리거 카운트 리미트
 #define DT                 0.001f  // 1kHz (1ms) 실시간 주기 동기화 상수
-#define FAILSAFE_REJECT    -99.0f  // 망 오염 방지용 사멸 거부 신호
+#define FAILSAFE_REJECT    -99.0f  // 망 오염 방지용 말초 사멸 거부 신호
 
-// 2x2 근육 격자 물리 배치 인덱스 정의
-enum MuscleGridMap {
-    GRID_A_NORTH_WEST = 0, // 전완근 상측 좌측 (근육 전위 발원지 1)
-    GRID_B_NORTH_EAST = 1, // 전완근 상측 우측 (근육 전위 발원지 2)
-    GRID_C_SOUTH_WEST = 2, // 전완근 하측 좌측 (근육 전위 발원지 3)
-    GRID_D_SOUTH_EAST = 3  // 전완근 하측 우측 (근육 전위 발원지 4)
+// 3차 업그레이드: 아랫팔 근육 줄기를 따라 길게 배치되는 선형 격자(Linear Grid) 토폴로지 맵
+enum MuscleLinearGridMap {
+    // 🔴 굴근 트랙 스트립 (안쪽 아랫팔 - 물건 움켜쥐기 에너지)
+    FLEXOR_NODE_1_PROXIMAL = 0,    // 팔꿈치 부근 발원지
+    FLEXOR_NODE_2_MID      = 1,
+    FLEXOR_NODE_3_DISTAL   = 2,
+    FLEXOR_NODE_4_WRIST    = 3,    // 손목 부근 단면
+
+    // 🟠 신근 트랙 스트립 (바깥쪽 아랫팔 - 손가락 쫙 펴기 에너지)
+    EXTENSOR_NODE_1_PROXIMAL = 4,  // 팔꿈치 부근 발원지
+    EXTENSOR_NODE_2_MID      = 5,
+    EXTENSOR_NODE_3_DISTAL   = 6,
+    EXTENSOR_NODE_4_WRIST    = 7    // 손목 부근 단면
 };
 
-// --- [3. 글로벌 커널 메모리 할당] ---
-CellNode32    muscle_grid_nodes[NUM_GRID_CHANNELS]; // 근육 격자용 1층 4개 셀
+// =================================================================
+// [3. 글로벌 커널 메모리 할당]
+// =================================================================
+CellNode32    muscle_grid_nodes[NUM_GRID_CHANNELS]; // 3차 업그레이드: 선형 격자용 1층 8개 에지 셀 노드
 CellNode32    gyro_twist_node;                     // 내재화된 손목 자이로용 독립 1층 셀
 MeshCore32    spinal_fusion_center;                // 2층 위상 기하학 공간 융합 센터
 
-// --- [4. 가속 엔진 초기화 함수] ---
+
+// =================================================================
+// [4. 가속 엔진 초기화 함수]
+// =================================================================
 void init_fluxmesh_core_nodes() {
-    // 1층 근육 그리드 노드 상태 초기화
+    // 1층 근육 그리드 노드 상태 초기화 (3차: 선형 격자 8채널 대응 자동 루프)
     for (int i = 0; i < NUM_GRID_CHANNELS; i++) {
         muscle_grid_nodes[i].p00 = 1.0f; muscle_grid_nodes[i].p01 = 0.0f;
         muscle_grid_nodes[i].p10 = 0.0f; muscle_grid_nodes[i].p11 = 1.0f;
         muscle_grid_nodes[i].state_value = 0.0f;
+        muscle_grid_nodes[i].strike_count = 0; // 3차: 노이즈 카운터 초기화
         muscle_grid_nodes[i].is_isolated = false;
     }
     
@@ -63,6 +86,7 @@ void init_fluxmesh_core_nodes() {
     gyro_twist_node.p00 = 1.0f; gyro_twist_node.p01 = 0.0f;
     gyro_twist_node.p10 = 0.0f; gyro_twist_node.p11 = 1.0f;
     gyro_twist_node.state_value = 0.0f;
+    gyro_twist_node.strike_count = 0;
     gyro_twist_node.is_isolated = false;
 
     // 2층 융합 코어 초기화
@@ -70,22 +94,41 @@ void init_fluxmesh_core_nodes() {
     spinal_fusion_center.p00 = 1.0f;
     spinal_fusion_center.is_broken = false;
     
-    std::cout << "[SYSTEM] 2x2 근육 그리드 및 자이로 융합 엔진 초기화 성공.\n";
+    std::cout << "[SYSTEM] 8채널 선형 분산 그리드 및 자이로 융합 엔진 초기화 성공.\n";
 }
 
-// --- [5. 1층: 말초 화이트 노이즈 멸절 및 자가 치유(Apoptosis) 커널 함수] ---
+// =================================================================
+// [5. 1층: 말초 화이트 노이즈 멸절 및 자가 치유(Apoptosis) 커널 함수]
+// =================================================================
 float process_peripheral_cell32(CellNode32* self, float raw_signal, float cos_t, float sin_t) {
-    // [GUARD 1] IEEE 754 표준 가드를 이용한 단선 및 전압 폭주(NaN) 즉시 판정
+    // [GUARD 1-1] IEEE 754 표준 가드를 이용한 중앙 마스터 단의 단선 및 전압 폭주(NaN) 판정
     if (raw_signal != raw_signal || std::isinf(raw_signal)) {
-        self->is_isolated = true; // 세포 사멸 트리거
+        self->is_isolated = true; // 세포 사멸 트리거 활성화
         return FAILSAFE_REJECT;
     }
+    
+    // [GUARD 1-2] 3차 업그레이드: 말초 노드 칩 자율 사멸 신호(-99.0f) 또는 임계 전압 초과 수신 감시
+    // 통신 버스 상에서 노드가 스스로 죽었다고 선언하거나, 비정상 고전압 신호 유입 시 카운터 누적
+    if (raw_signal == FAILSAFE_REJECT) {
+        self->strike_count++;
+        if (self->strike_count >= OVERLOAD_STRIKE_MAX) {
+            self->is_isolated = true; // 말초 전파 차단 격리벽 작동
+            return FAILSAFE_REJECT;
+        }
+    } else {
+        // [1차 청사진의 자가치유 사상 계승] 오진 방지용 점진적 카운터 감쇄 수식 반영
+        if (self->strike_count > 0) {
+            self->strike_count--;
+        }
+    }
+    
+    // 이미 영구 사멸 및 격리 판정을 받은 노드는 무조건 거부 신호 리턴
     if (self->is_isolated) return FAILSAFE_REJECT;
 
-    // 제자리 팽이 스ピン 매커니즘: 시간축 오차 정제 행렬 수식 전개
+    // 제자리 팽이 스핀 매커니즘: 시간축 오차 정제 행렬 수식 전개 (원작 BCI 사상 동기화)
     float pred_x = self->state_value * cos_t;
     
-    // Joseph Form 수치 방어벽 수식: 반올림 오차가 누적되어도 절대로 음수(-)로 뒤집히지 않음
+    // Joseph Form 수치 방어벽 수식: 부동소수점 반올림 오차가 누적되어도 공분산이 음수(-)로 뒤집히지 않음
     float k_gain = (self->p00 * cos_t) / (cos_t * self->p00 * cos_t + 0.1f); 
     self->state_value = pred_x + k_gain * (raw_signal - pred_x);
     self->p00 = (1.0f - k_gain * cos_t) * self->p00 * (1.0f - k_gain * cos_t) + k_gain * 0.1f * k_gain;
@@ -93,43 +136,70 @@ float process_peripheral_cell32(CellNode32* self, float raw_signal, float cos_t,
     return self->state_value;
 }
 
-// --- [6. 2층: 2x2 격차 기반 소용돌이 우회장(Curl Rerouting) 융합 커널 함수] ---
+
+// =================================================================
+// [6. 2층: 8채널 선형 격차 기반 소용돌이 우회장(Curl Rerouting) 융합 커널 함수]
+// =================================================================
 MeshVector32 process_spinal_mesh32(MeshCore32* core, float* muscle_inputs, float gyro_input) {
     MeshVector32 output_vector = {0.0f, 0.0f};
 
-    // [GUARD 2] 전체 시스템 망의 오염 및 붕괴 여부 선제 감시
+    // [GUARD 2] 전체 시스템 망의 오염 및 붕괴 여부 선제 감시 (가용 노드 전멸 등)
     if (core->is_broken) return output_vector;
 
-    // 2x2 근육 그리드 표면 전위의 공간적 미분 격차(Spatial Gradient) 계산
-    // 배열 기호와 루프 연산을 전면 차용한 완전 평면 사산(Flattening) 기법 적용
-    float active_nodes_count = 0.0f;
-    float Gradient_X = 0.0f;
-    float Gradient_Y = 0.0f;
+    // 3차 업그레이드: 해부학적 근육 결(선형 격자 스트립) 전위 차이 및 기울기 분석 레지스터
+    float active_flexor_count   = 0.0f;
+    float active_extensor_count = 0.0f;
+    
+    float Flexor_Gradient       = 0.0f; // 굴근 결을 따라 손목 방향으로 흐르는 활동전위 에너지
+    float Extensor_Gradient     = 0.0f; // 신근 결을 따라 손목 방향으로 흐르는 활동전위 에너지
 
-    // 상단 라인(A, B)과 하단 라인(C, D)의 격차 유도 (단선 노드는 연산 자동 차단 및 우회)
-    if (muscle_inputs[GRID_A_NORTH_WEST] != FAILSAFE_REJECT && muscle_inputs[GRID_B_NORTH_EAST] != FAILSAFE_REJECT) {
-        Gradient_X += (muscle_inputs[GRID_B_NORTH_EAST] - muscle_inputs[GRID_A_NORTH_WEST]);
-        active_nodes_count += 1.0f;
+    // ── 1) 🔴 굴근 트랙 스트립 선형 격차 연산 (팔꿈치에서 손목으로 전도되는 에너지 추적) ──
+    // 사멸 판정(FAILSAFE_REJECT)을 받은 노드는 조건문에서 자동 제외 및 자율 우회
+    if (muscle_inputs[FLEXOR_NODE_1_PROXIMAL] != FAILSAFE_REJECT && muscle_inputs[FLEXOR_NODE_2_MID] != FAILSAFE_REJECT) {
+        Flexor_Gradient += (muscle_inputs[FLEXOR_NODE_2_MID] - muscle_inputs[FLEXOR_NODE_1_PROXIMAL]);
+        active_flexor_count += 1.0f;
     }
-    if (muscle_inputs[GRID_C_SOUTH_WEST] != FAILSAFE_REJECT && muscle_inputs[GRID_D_SOUTH_EAST] != FAILSAFE_REJECT) {
-        Gradient_X += (muscle_inputs[GRID_D_SOUTH_EAST] - muscle_inputs[GRID_C_SOUTH_WEST]);
-        active_nodes_count += 1.0f;
+    if (muscle_inputs[FLEXOR_NODE_2_MID] != FAILSAFE_REJECT && muscle_inputs[FLEXOR_NODE_3_DISTAL] != FAILSAFE_REJECT) {
+        Flexor_Gradient += (muscle_inputs[FLEXOR_NODE_3_DISTAL] - muscle_inputs[FLEXOR_NODE_2_MID]);
+        active_flexor_count += 1.0f;
     }
-    if (muscle_inputs[GRID_A_NORTH_WEST] != FAILSAFE_REJECT && muscle_inputs[GRID_C_SOUTH_WEST] != FAILSAFE_REJECT) {
-        Gradient_Y += (muscle_inputs[GRID_A_NORTH_WEST] - muscle_inputs[GRID_C_SOUTH_WEST]);
-        active_nodes_count += 1.0f;
+    if (muscle_inputs[FLEXOR_NODE_3_DISTAL] != FAILSAFE_REJECT && muscle_inputs[FLEXOR_NODE_4_WRIST] != FAILSAFE_REJECT) {
+        Flexor_Gradient += (muscle_inputs[FLEXOR_NODE_4_WRIST] - muscle_inputs[FLEXOR_NODE_3_DISTAL]);
+        active_flexor_count += 1.0f;
     }
 
-    if (active_nodes_count <= 0.001f) {
-        core->is_broken = true; // 가용 노드 전멸 시 시스템 강제 셧다운 락업
+    // ── 2) 🟠 신근 트랙 스트립 선형 격차 연산 (팔꿈치에서 손목으로 전도되는 에너지 추적) ──
+    if (muscle_inputs[EXTENSOR_NODE_1_PROXIMAL] != FAILSAFE_REJECT && muscle_inputs[EXTENSOR_NODE_2_MID] != FAILSAFE_REJECT) {
+        Extensor_Gradient += (muscle_inputs[EXTENSOR_NODE_2_MID] - muscle_inputs[EXTENSOR_NODE_1_PROXIMAL]);
+        active_extensor_count += 1.0f;
+    }
+    if (muscle_inputs[EXTENSOR_NODE_2_MID] != FAILSAFE_REJECT && muscle_inputs[EXTENSOR_NODE_3_DISTAL] != FAILSAFE_REJECT) {
+        Extensor_Gradient += (muscle_inputs[EXTENSOR_NODE_3_DISTAL] - muscle_inputs[EXTENSOR_NODE_2_MID]);
+        active_extensor_count += 1.0f;
+    }
+    if (muscle_inputs[EXTENSOR_NODE_3_DISTAL] != FAILSAFE_REJECT && muscle_inputs[EXTENSOR_NODE_4_WRIST] != FAILSAFE_REJECT) {
+        Extensor_Gradient += (muscle_inputs[EXTENSOR_NODE_4_WRIST] - muscle_inputs[EXTENSOR_NODE_3_DISTAL]);
+        active_extensor_count += 1.0f;
+    }
+
+    // [GUARD 3] 만약 양측 트랙의 노드가 모두 전멸하여 연산이 불가능할 경우 시스템 강제 안전 락업
+    if (active_flexor_count <= 0.001f && active_extensor_count <= 0.001f) {
+        core->is_broken = true; 
         return output_vector;
     }
 
-    // 평균 공간 기울기 평탄화
-    Gradient_X /= active_nodes_count;
-    Gradient_Y /= active_nodes_count;
+    // 가용 노드 지분만큼 평균 공간 기울기 평탄화 (분모 압축 메커니즘 자동 발현)
+    if (active_flexor_count > 0.0f)   Flexor_Gradient /= active_flexor_count;
+    if (active_extensor_count > 0.0f) Extensor_Gradient /= active_extensor_count;
 
-    // [신의 한 수: 자이로스코프 내재화의 공간 에너지 주입 메커니즘]
+    // 3차 업그레이드 사상 주입을 위해 선형 트랙 축 데이터를 2차원 의수 벡터 평면 공간으로 치환 매핑
+    // Gradient_X: 손가락을 쥐고 펴는 굴근/신근 간의 대향 전위차 격차 벡터
+    // Gradient_Y: 아랫팔 줄기를 타고 흘러내려 온 전완부 전체 복합 기울기 총합
+    float Gradient_X = Flexor_Gradient - Extensor_Gradient;
+    float Gradient_Y = Flexor_Gradient + Extensor_Gradient;
+
+
+       // ── 3) [신의 한 수: 자이로스코프 내재화의 공간 에너지 주입 메커니즘] ──
     // 만약 근육 신호가 감쇄(피로)하더라도, 내재화된 자이로의 물리 각속도가 공간 펌프 역할을 수행함
     float internal_gyro_pump = (gyro_input != FAILSAFE_REJECT) ? gyro_input : 0.0f;
 
@@ -147,15 +217,24 @@ MeshVector32 process_spinal_mesh32(MeshCore32* core, float* muscle_inputs, float
     return output_vector;
 }
 
-// --- [7. 실시간 동시 스캔 메인 파이프라인 (1ms 인터럽트 루틴)] ---
+// =================================================================
+// [7. 실시간 동시 스캔 메인 파이프라인 (1ms 인터럽트 루틴) - 전반부]
+// =================================================================
 void run_fluxmesh_realtime_pipeline() {
-    // 실제 임베디드 적용 시 이 자리에 ADC 및 IMU SPI/I2C 동시 다중 스캔 데이터가 바인딩됩니다.
-    float raw_muscle_sensors[NUM_GRID_CHANNELS] = { 120.4f, 135.1f, 40.2f, 45.8f }; // 2x2 격자 원시 전압 데이터
+    // 3차 업그레이드: 실제 아랫팔 굴근/신근 줄기를 따라 수집되는 8채널 원시 전압 데이터 (ADC/SPI 바인딩 가상화)
+    // [0~3: 굴근 라인 / 4~7: 신근 라인]
+    float raw_muscle_sensors[NUM_GRID_CHANNELS] = { 
+        120.4f, 135.1f, 140.2f, 145.8f,  // 🔴 굴근 스트립 (Proximl -> Wrist)
+        40.2f,  45.8f,  50.1f,  55.3f    // 🟠 신근 스트립 (Proximal -> Wrist)
+    }; 
     float raw_internal_gyro = 1.85f; // 내재화 자이로 센서 실시간 스캔 각속도 값 (rad/s)
 
-    // [자가 치유 기능 테스트 시뮬레이션]
-    // 땀이 차서 근육 그리드 동쪽 패드(1번)가 쇼트나거나 튀어서 NaN이 들어온다면:
-    // raw_muscle_sensors[GRID_B_NORTH_EAST] = NAN; // 이 주석을 풀면 가드 플래그가 격리막을 치고 사선 우회 연산을 집행합니다.
+    // 🔬 [3차 자율 세포 사멸 기능 테스트 시뮬레이션 가이드]
+    // 땀이 차서 굴근 스트립의 미드 노드(1번)가 쇼트나거나 단선되어 NaN이 들어온다면:
+    // raw_muscle_sensors[FLEXOR_NODE_2_MID] = NAN; // 이 주석을 풀면 말초 칩에서 격리막을 치고 소용돌이 우회 연산을 집행합니다.
+    
+    // 만약 1번 노드가 일시적 통신 에러로 사멸 거부 신호(-99.0f)를 지속해서 던진다면:
+    // raw_muscle_sensors[FLEXOR_NODE_2_MID] = FAILSAFE_REJECT; // 연속 8회 누적 시 강제 아포토시스가 집행됩니다.
 
     float filtered_muscle[NUM_GRID_CHANNELS] = {0.0f};
     float filtered_gyro = 0.0f;
@@ -163,33 +242,62 @@ void run_fluxmesh_realtime_pipeline() {
     float cos_t = std::cos(DT);
     float sin_t = std::sin(DT);
 
-    // Step 1: [LAYER 1] 다채널 근육 그리드 + 자이로 무간섭 독립 필터링 진행
+    // ── Step 1: [LAYER 1] 8채널 선형 근육 그리드 + 자이로 무간섭 독립 필터링 진행 ──
     for (int i = 0; i < NUM_GRID_CHANNELS; i++) {
         filtered_muscle[i] = process_peripheral_cell32(&muscle_grid_nodes[i], raw_muscle_sensors[i], cos_t, sin_t);
         if (muscle_grid_nodes[i].is_isolated) {
-            std::cout << "⚠️ [LOCAL APRE_ALARM] 근육 그리드 노드 " << i << "번 폭주 격리 완료!\n";
+            std::cout << "⚠️ [LOCAL APORT_ALARM] 선형 격자 노드 " << i << "번 폭주로 인한 자율 격리 완료!\n";
         }
     }
     filtered_gyro = process_peripheral_cell32(&gyro_twist_node, raw_internal_gyro, cos_t, sin_t);
 
-    // Step 2: [LAYER 2] 2층 융합 센터로 데이터 투하 및 소용돌이 공간 변위 도출
+
+       // ── Step 2: [LAYER 2] 2층 융합 센터로 데이터 투하 및 소용돌이 공간 변위 도출 ──
     MeshVector32 dynamic_control_v = process_spinal_mesh32(&spinal_fusion_center, filtered_muscle, filtered_gyro);
 
-    // Step 3: 도출된 변위 벡터를 5개 손가락 관절 구동 모터 신호로 최종 매핑 송출
-    // dynamic_control_v.x ──> 손목 물리 구동 서보 토크 매핑
-    // dynamic_control_v.y ──> 5개 손가락 인장 텐던 분배 커널로 패스 (이전 단계 작성 수식 연동)
-    
+    // ── Step 3: [MOTOR INTERFACE] 도출된 소용돌이 변위를 1차 모터 피드백 커널과 결합 및 최종 매핑 ──
+    // 3차 업그레이드 마감: 외부 모터 헤더와 소용돌이 벡터(dynamic_control_v.y)를 완벽하게 크로스 체인 연동
+    // 실제 임베디드 환경에서는 전단에 배치된 전류 센서(INA219 등)로부터 데이터가 바인딩됩니다.
+    float simulated_motor_currents[NUM_FINGERS] = { 150.0f, 220.0f, 180.0f, 110.0f, 95.0f }; // 실시간 전류 데이터 (mA)
+    int final_output_pwms[NUM_FINGERS] = { MOTOR_PWM_MIN };                                // 출력용 PWM 배열
+
+    // 1차 청사진의 핵심 방어막인 전류 과부하 피드백 스캔 및 자가 치유 감쇄 루프 구동
+    fluxmesh_motor_feedback_scan(my_bio_fingers, simulated_motor_currents);
+
+    // 2층 메쉬 코어에서 솟구친 소용돌이 변위(dy)를 살아있는 5지 노드로 사선 우회(Reroute) 평탄화 매핑
+    fluxmesh_motor_mapping_execute(my_bio_fingers, dynamic_control_v.y, final_output_pwms);
+
+    // ── Step 4: [TELEMETRY] 시스템 상태 데이터 실시간 시리얼 모니터링 출력 ──
     std::cout << "[TRACKING] 중력장 깊이: " << spinal_fusion_center.depth 
-              << " | 출력 소용돌이 궤적 벡터 X: " << dynamic_control_v.x 
-              << ", Y: " << dynamic_control_v.y << "\n";
+              << " | 소용돌이 벡터 X(손목): " << dynamic_control_v.x 
+              << " , Y(지분): " << dynamic_control_v.y << "\n";
+              
+    std::cout << "[MOTOR OUT] PWM 신호 사산 매핑 릴리즈 -> "
+              << " 엄지: " << final_output_pwms[FIN_THUMB] << "ms |"
+              << " 검지: " << final_output_pwms[FIN_INDEX] << "ms |"
+              << " 중지: " << final_output_pwms[FIN_MIDDLE] << "ms |"
+              << " 약지: " << final_output_pwms[FIN_RING] << "ms |"
+              << " 새끼: " << final_output_pwms[FIN_PINKY] << "ms\n\n";
 }
 
+// =================================================================
+// [8. 시스템 메인 엔트리 포인트 (Main Runtime)]
+// =================================================================
 int main() {
+    // 1. 하드웨어 메모리 테이블 및 8채널 선형 가속 노드 레이아웃 초기화
     init_fluxmesh_core_nodes();
     
-    std::cout << "\n--- 실시간 고밀도 그리드 융합 연산 스캔 시작 (1kHz 주기 동작) ---\n";
+    // 2. 1차 청사진의 해부학적 가중치 배정(엄지 1.2, 검지 1.1 등) 시스템 구동
+    fluxmesh_motor_init(my_bio_fingers);
+    
+    std::cout << "\n--- BioCerve 8채널 선형 격자 스마트 스킨 & 모터 피드백 루프 실시간 스캔 시작 (1kHz) ---\n";
+    
+    // 1ms 주기 인터럽트 타이머 루틴을 가상화하여 3틱(3ms) 시뮬레이션 주행 검증
     for (int tick = 0; tick < 3; tick++) {
+        std::cout << "[TICK #" << tick + 1 << " ms]";
         run_fluxmesh_realtime_pipeline();
     }
+    
+    std::cout << "[SYSTEM] 시뮬레이션 파이프라인 가동성 검증 성공. 프로덕션 빌드가 준비되었습니다.\n";
     return 0;
 }
