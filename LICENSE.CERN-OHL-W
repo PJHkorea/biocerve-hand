@@ -1,0 +1,46 @@
+CERN Open Hardware Licence Version 2 - Weakly Reciprocal (CERN-OHL-W v2.0)
+
+Copyright (c) 2026 PJHkorea
+
+This program is free hardware; you can redistribute it and/or modify it under the terms of the CERN Open Hardware Licence Version 2 - Weakly Reciprocal (CERN-OHL-W v2.0) as published by CERN.
+
+------------------------------------------------------------------------
+PREAMBLE
+
+Open Giving access to a design under the terms of this Licence establishes a contract between the Licensor and any Licensee. This contract grants the Licensee certain rights to Use, Modify and Distribute the Design, and to Make and Distribute Products based on it, as long as the Licensee respects the conditions specified in this Licence.
+
+1. DEFINITIONS
+
+1.1 'Licensor' means any person or entity that makes the Design available under the terms of this Licence.
+1.2 'Licensee' means any person or entity exercising rights granted under the terms of this Licence.
+1.3 'Design' means the specifications and drawings of the hardware component or system, including any source files (such as CAD files, schematic diagrams or PCB layouts) that describe its physical form and functionality.
+1.4 'Modification' means any change, addition to or deletion from the Design.
+1.5 'Product' means any physical object manufactured based on the Design or its Modifications.
+1.6 'Available Component' means any hardware component or software module incorporated into the Design or Product that is licensed under a different open or proprietary licence, provided it can be separated from the primary Design.
+
+2. GRANT OF RIGHTS
+
+Subject to the terms and conditions of this Licence, the Licensor hereby grants the Licensee a worldwide, royalty-free, non-exclusive licence to:
+a) Use, Modify and copy the Design;
+b) Distribute the Design and its Modifications;
+c) Make, have made, Use and Distribute Products based on the Design or its Modifications.
+
+3. CONDITIONS AND COVENANTS
+
+The rights granted in Section 2 are subject to the following conditions:
+
+3.1 Attribution and Notices
+The Licensee must retain all copyright notices, trademark notices, and disclaimers included by the Licensor in the Design files. Any Distribution of the Design or its Modifications must include a copy of this Licence.
+
+3.2 Reciprocity for Modifications (Weak Reciprocity)
+If the Licensee makes any Modifications to the primary Design files and Distributes them, the Licensee MUST make those modified Design files available under the same terms of this CERN-OHL-W v2.0 licence.
+
+3.3 Compatibility and Integration
+The Licensee may integrate Available Components (such as external robotic frameworks, non-open mechanical links, or third-party main bodies) with the Design without being required to open-source those external proprietary parts, provided the primary open source hardware design files (`.scad`) remain separate and fully open under this Licence.
+
+4. DISCLAIMER OF WARRANTY AND LIABILITY
+
+THE DESIGN IS PROVIDED BY THE LICENSOR "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS DESIGN, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+------------------------------------------------------------------------
+End of Terms and Conditions.
