@@ -124,8 +124,8 @@ tendon_dia   = 1.5;  // 보풀 가드 통과용 고강도 섬유선(Dyneema) 구
 // =================================================================
 // [3] 실시간 가동성 및 시뮬레이터 제어 (Simulator Setup)
 // =================================================================
-pip_angle = 45;      // 관절 구동 각도 입력 (0 ~ 90)
-render_target = 2; 
+pip_angle = 90;      // 관절 구동 각도 입력 (0 ~ 90)
+render_target = 99; 
 
 // =================================================================
 // [4] 메인 배포 파이프라인 (Main System Entry Point)
@@ -194,13 +194,17 @@ module complete_hand_with_upper_palm() {
 
     }
     
-    // D. 손바닥 상단판 프레임 위에 5개 손가락 유닛을 일체형(Monolithic)으로 빌드업
-    // 🛠️ [최종 정중앙 안착]: 손가락의 X축 생성 원점도 -14로 고정하여 좌우 여백의 밸런스를 완벽한 대칭형으로 마감합니다.
+       // D. 손바닥 상단판 프레임 위에 5개 손가락 유닛을 일체형(Monolithic)으로 빌드업
+    // 🛠️ [최종 위상 교정]: 손가락의 기본 생성 축을 rotate([0, 0, 90])으로 정회전시켜 
+    // 누워있던 손가락들을 손바닥 판 위에 똑바르고 견고한 기계공학적 수직 상태로 세워 박습니다!
     for (i = [0:4]) {
-        translate([i * 18 - 14, palm_depth / 2, 0]) 
-            generate_biometric_finger(i, pip_angle);
+        translate([i * 18 - 14, palm_depth / 2, 0]) {
+            rotate([0, 0, 90]) // 👈 Z축 90도 회전을 주어 손바닥 판 단면과 위상을 100% 일치시킴
+                generate_biometric_finger(i, pip_angle);
+        }
     }
 }
+
 
 
 // =================================================================
@@ -373,4 +377,3 @@ module distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, outer_radius
             cube([2, outer_radius * 0.8, d_len / 2], center = true);
     }
 }
-
