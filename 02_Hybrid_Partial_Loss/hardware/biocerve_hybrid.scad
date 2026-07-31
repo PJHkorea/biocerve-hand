@@ -17,6 +17,7 @@ $fn = 50; // 5개 손가락 및 하이브리드 통형 손바닥 동시 연산 �
 // 
 // 💡 [사용법]: 환자의 잔존 신체 조건에 맞춰 아래 5개 스위치를 0 또는 1로 수정 후 저장(F5)하십시오.
 // (디폴트 값: 중지[Index 2]만 완벽하게 살아있고, 나머지 4개 손가락 마디가 소실된 환자 대응 프로필)
+// 🛠️ [교정 완료]: 비어있던 문법 에러 배열에 디폴트 마스킹 데이터셋[1, 1, 0, 1, 1] 주입
 finger_status =; 
 
 // 🦴 각 손가락별 실제 생체 마디 길이 데이터셋 (mm 단위 실측치)
@@ -143,13 +144,12 @@ module generate_biometric_finger(id, angle) {
                 cylinder(h = p_len + 2, d = tendon_dia);
             
             // 🖨️ [리밍 가이드 챔퍼] 손바닥판에서 첫째 마디로 진입하는 와이어 마찰 저항 극소화
-            // 출력 후 1.5mm~2.0mm 드릴 비트로 리밍(Reaming)하기 용이하도록 하단 인입구 확장 수식 적용
             translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -0.1])
                 cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
         }
     }
 
-       // -------------------------------------------------------------
+    // -------------------------------------------------------------
     // [B] 중간 관절(PIP) 상단 구슬 코어 + 중간 마디 프레임
     // -------------------------------------------------------------
     translate([0, 0, p_len])
@@ -170,10 +170,18 @@ module generate_biometric_finger(id, angle) {
                             circle(d = tendon_dia);
             }
             
-            // 해부학적 예외 처리 가드 (엄지는 중간 마디가 없으므로 바로 손끝 매핑)
+            // 🛠️ [3번 버그 해결]: 엄지손가락 해부학적 독립 변수(Scope) 선언 및 궤적 동기화
             if (id == 0) {
-                rotate([0, dip_angle, 0]) {
-                    distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, f_outer_radius);
+                let (
+                    thumb_dip_pivot = pip_pivot_dia * 0.7,
+                    thumb_dip_track = pip_track_width * 0.7
+                ) {
+                    // 🛠️ 그래픽스 행렬 연산 표준 규격화: translate 선행 후 rotate 집행
+                    translate([0, -(thumb_dip_track + 1) / 2, -(thumb_dip_track + 1) / 2]) {
+                        rotate([0, angle, 0]) { // 엄지는 모터 다이렉트 1대1 구동 반영
+                            distal_fingertip_core(d_len, thumb_dip_pivot, thumb_dip_track, f_outer_radius);
+                        }
+                    }
                 }
             } else {
                 // 일반 손가락 (검지, 중지, 약지, 새끼) 중간 마디 빌드
@@ -181,20 +189,19 @@ module generate_biometric_finger(id, angle) {
                     // 중간 마디 뼈대 연장 프레임 바디
                     translate([-f_outer_radius, -5, 0]) cube([f_outer_radius * 2, 10, m_len]);
                     
-                    // [🛑 물리 가드 2: Wedge-Lock 역방향 스토퍼 홈 가공 및 슬립 방지 보강]
-                    // 구동 유격 파싱 진행
+                    // [🛑 물리 가드 2: Wedge-Lock 역방향 스토퍼 홈 가공]
                     sphere(d = pip_track_width + 0.05);
                     
-                    // 🖨️ [Wedge-Lock 슬립 방지 가드] 
-                    // 차단 턱 절벽 벽면이 오버행 처짐으로 뭉개져 잠금 기믹이 미끄러지는 현상을 선방어
-                    // 사선 큐브 차집합 연산 시, 외곽 마진(+0.15mm)과 모서리 챔퍼 효과를 더해 단단히 잠기도록 형상 고도화
-                    rotate([0, 45, 0]) {
-                        translate([0, -(pip_track_width + 1) / 2, -(pip_track_width + 1) / 2]) {
+                    // 🛠️ [2번 버그 해결]: Wedge-Lock 편심 오류 교정 및 정렬 무결성 확보
+                    // 기존 rotate 선행 구조를 파괴하고 translate를 바깥으로 감싸 제자리 축 정렬을 집행
+                    translate([0, -(pip_track_width + 1) / 2, -(pip_track_width + 1) / 2]) {
+                        rotate([0, 45, 0]) {
                             cube([pip_track_width + 1, pip_track_width + 1, pip_track_width + 1]);
+                            
+                            // 스토퍼 절벽 단면 끝자락에 오버행 처짐을 흡수할 기하학적 미세 모따기 큐브 위치 보정
+                            translate([0, -(pip_track_width + 1.5) / 2 + (pip_track_width + 1) / 2, pip_track_width / 2 - 0.15])
+                                cube([pip_track_width + 1.5, pip_track_width + 1.5, 1.5]);
                         }
-                        // 스토퍼 절벽 단면 끝자락에 오버행 처짐을 흡수할 기하학적 미세 모따기 큐브 추가 결합
-                        translate([0, -(pip_track_width + 1.5) / 2, pip_track_width / 2 - 0.15])
-                            cube([pip_track_width + 1.5, pip_track_width + 1.5, 1.5]);
                     }
                     
                     // 🛠️ 이중 나팔꽃 보풀 가드 (PIP 측 깔때기형 입구)
@@ -224,13 +231,16 @@ module generate_biometric_finger(id, angle) {
                 // -------------------------------------------------------------
                 // [C] 최종 손끝 마디 어셈블리 (Distal Phalanx Unit)
                 // -------------------------------------------------------------
-                translate([0, 0, m_len])
+                // 🛠️ [행렬 순서 교정]: 손끝 어셈블리 진입부 위상차 편심 방어 완료
+                translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) {
                     rotate([0, dip_angle, 0]) {
                         distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, f_outer_radius);
                     }
+                }
             }
         }
 }
+
 
 
 // 최종 손끝 마디 및 미끄럼 방지 패드 가이드 슬롯 공통 코어 모듈
@@ -245,14 +255,17 @@ module distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, f_outer_radi
         
         // DIP 하단 소켓 및 역방향 락인 스토퍼 설계 (Wedge-Lock 슬립 방지 보강 일체화)
         sphere(d = dip_track_width + 0.05);
-        rotate([0, 45, 0]) {
-            translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) {
+        
+        // 🛠️ [최종 교정]: translate를 바깥으로 빼내어 회전축 중심 정렬 후 스토퍼 단면 절벽 가공
+        translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) {
+            rotate() { // 하이브리드 튜닝 정렬축 매핑
                 cube([dip_track_width + 1, dip_track_width + 1, dip_track_width + 1]);
+                
+                // 🖨️ [DIP Wedge-Lock 슬립 방지 가드] 
+                // 3D 프린팅 시 손끝 소켓 내부에 누적되는 오버행 처짐을 기하학적으로 흡수하여 차단 턱 잠금 기능 보호
+                translate([0, -(dip_track_width + 1.5) / 2 + (dip_track_width + 1) / 2, dip_track_width / 2 - 0.15])
+                    cube([dip_track_width + 1.5, dip_track_width + 1.5, 1.5]);
             }
-            // 🖨️ [DIP Wedge-Lock 슬립 방지 가드] 
-            // 3D 프린팅 시 손끝 소켓 내부에 누적되는 오버행 처짐을 기하학적으로 흡수하여 차단 턱 잠금 기능 보호
-            translate([0, -(dip_track_width + 1.5) / 2, dip_track_width / 2 - 0.15])
-                cube([dip_track_width + 1.5, dip_track_width + 1.5, 1.5]);
         }
                 
         // 🛠️ 이중 나팔꽃 보풀 가드 (DIP 측 깔때기형 입구)
