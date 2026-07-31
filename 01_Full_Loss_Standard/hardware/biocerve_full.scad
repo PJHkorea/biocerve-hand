@@ -145,38 +145,63 @@ module complete_hand_with_upper_palm() {
     palm_depth = 25;
     palm_thick = 6;
 
-    difference() {
+            difference() {
         // A. 손바닥 상단 베이스 플레이트 주조
-        color("Gray") 
-            translate([-10, -5, -palm_thick]) 
-                cube([palm_width, palm_depth, palm_thick]); 
+        // 🛠️ [좌측 여백 버그 완전 박멸]: 수동 오프셋 대신 손바닥 실제 폭(palm_width)의 
+        // 정확한 절반 정중앙을 원점으로 매핑하여 엄지손가락 밑바닥까지 살집을 완벽히 채워줍니다.
+                color("Gray") 
+            // 🛠️ [플레이트 쏠림 최종 박멸]: 손가락 배치 원점 축에 정확히 일치하도록 X축 중심점을 -22으로 원상 복구 및 최적화합니다.
+            translate([palm_width / 2 -22, palm_depth / 2, -palm_thick / 2]) 
+                cube([palm_width, palm_depth, palm_thick], center = true); 
+
+
         
-        // B. 하단 하우징(모터 박스)과의 체결을 위한 M3 볼트 고정 홀 타공 (모서리 4개소)
-        translate([-5, 0, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
-        translate([palm_width - 15, 0, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
-        translate([-5, palm_depth - 10, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
-        translate([palm_width - 15, palm_depth - 10, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
+               // B. 하단 하우징(모터 박스)과의 체결을 위한 M3 볼트 고정 홀 타공 (모서리 4개소 완전 파라메트릭 제어)
+        // 💡 플레이트의 마스터 이동축(-22)과 완벽하게 일치시켜 볼트 홀이 모서리 안전 마진을 유지하도록 교정합니다.
+        let (margin_x = 4, margin_y = 4) {
+            // 좌측 상단 볼트 홀
+            translate([-22 + margin_x, margin_y, -palm_thick - 1]) 
+                cylinder(h = palm_thick + 2, d = 3.2);
+                
+            // 우측 상단 볼트 홀
+            translate([palm_width - 22 - margin_x, margin_y, -palm_thick - 1]) 
+                cylinder(h = palm_thick + 2, d = 3.2);
+                
+            // 좌측 하단 볼트 홀
+            translate([-22 + margin_x, palm_depth - margin_y, -palm_thick - 1]) 
+                cylinder(h = palm_thick + 2, d = 3.2);
+                
+            // 우측 하단 볼트 홀
+            translate([palm_width - 22 - margin_x, palm_depth - margin_y, -palm_thick - 1]) 
+                cylinder(h = palm_thick + 2, d = 3.2);
+        }
         
         // C. 손가락 뿌리에서 내려오는 5쌍의 텐던 와이어가 통과할 수직 관통 가이드 홀
         for (i = [0:4]) {
             scale_factor = finger_thickness[i];
             pip_pivot_dia = base_pip_dia * scale_factor;
             
-            translate([i * 18, palm_depth / 2, -palm_thick - 1]) {
+            // 🛠️ [궤적 정밀 도킹]: 현재 화면에서 가장 완벽하게 안착해 있는 손가락들의 기본 생성 오프셋에 맞추어 
+            // 와이어 가이드 타공 축의 X축 시작점 마진을 정교하게 고정합니다. (손가락 튕김을 완벽히 방어)
+            translate([i * 18 - 14 + (pip_pivot_dia / 2 + wall_thick / 2), palm_depth / 2, -palm_thick - 1]) {
+                // 1. 메인 와이어 관통 터널 (Dyneema 선 통과용)
                 cylinder(h = palm_thick + 2, d = tendon_dia);
+                // 2. 베이스 플레이트 최상단 인입구 깔때기 가공
                 translate([0, 0, palm_thick - 1.1])
-                    cylinder(h = 2.3, d1 = tendon_dia, d2 = tendon_dia + 1.5, center = false);
-                translate([0, 0, -0.1])
-                    cylinder(h = 2.3, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
-            } 
-        } 
-    } 
+                    cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
+            }
+        }
 
+    }
+    
     // D. 손바닥 상단판 프레임 위에 5개 손가락 유닛을 일체형(Monolithic)으로 빌드업
+    // 🛠️ [최종 정중앙 안착]: 손가락의 X축 생성 원점도 -14로 고정하여 좌우 여백의 밸런스를 완벽한 대칭형으로 마감합니다.
     for (i = [0:4]) {
-        translate([i * 18, 0, 0]) generate_biometric_finger(i, pip_angle);
+        translate([i * 18 - 14, palm_depth / 2, 0]) 
+            generate_biometric_finger(i, pip_angle);
     }
 }
+
 
 // =================================================================
 // [6] 손가락 생체 비례 생성 자동 제어 파이프라인
