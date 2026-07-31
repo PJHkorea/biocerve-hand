@@ -124,7 +124,7 @@ tendon_dia   = 1.5;  // 보풀 가드 통과용 고강도 섬유선(Dyneema) 구
 // =================================================================
 // [3] 실시간 가동성 및 시뮬레이터 제어 (Simulator Setup)
 // =================================================================
-pip_angle = 90;      // 관절 구동 각도 입력 (0 ~ 90)
+pip_angle = 70;      // 관절 구동 각도 입력 (0 ~ 90)
 render_target = 99; 
 
 // =================================================================
@@ -194,16 +194,32 @@ module complete_hand_with_upper_palm() {
 
     }
     
-       // D. 손바닥 상단판 프레임 위에 5개 손가락 유닛을 일체형(Monolithic)으로 빌드업
-    // 🛠️ [최종 위상 교정]: 손가락의 기본 생성 축을 rotate([0, 0, 90])으로 정회전시켜 
-    // 누워있던 손가락들을 손바닥 판 위에 똑바르고 견고한 기계공학적 수직 상태로 세워 박습니다!
+              // D. [사진 및 실물 기반 최종 릴리즈] 손바닥 프레임 위에 5개 손가락 유닛을 완전체 매핑
+    // 💡 [엄지 구동축 버그 박멸]: 복잡한 3축 회전 배열을 단일 축 단위로 분리(Isolate)하여 
+    // 각도가 들어갔을 때 엄지가 엉뚱한 대각선 허공으로 튕기지 않고 안쪽으로 정확히 감기게 만듭니다.
     for (i = [0:4]) {
-        translate([i * 18 - 14, palm_depth / 2, 0]) {
-            rotate([0, 0, 90]) // 👈 Z축 90도 회전을 주어 손바닥 판 단면과 위상을 100% 일치시킴
-                generate_biometric_finger(i, pip_angle);
+        if (i == 0) {
+            // 🦴 [실물 엄지손가락 정밀 위상 맵핑]
+            // 사진처럼 검지손가락 바로 옆 아래 둔덕 좌표계에 안착시킵니다.
+            translate([-14, palm_depth / 2 - 12, 0]) { 
+                rotate([0, 0, 45])      // 3. 마지막으로 네 손가락을 마주 보도록 대향 각도 45도 회전
+                    rotate([0, -90, 0]) // 2. 손목 둔덕에서 위를 향해 수직 기상하도록 회전
+                        rotate([0, 0, 90]) // 1. 기본 살집 방향 위상 정렬
+                            generate_biometric_finger(i, pip_angle);
+            }
+        } else {
+            // 🦴 [일반 네 손가락 표준 적층 위상]
+            // Y축 수직 폴딩 가동을 위해 90도 회전된 원래의 무결점 정렬 상태를 완벽히 유지합니다.
+            translate([i * 18 - 22, palm_depth / 2, 0]) {
+                rotate([0, 0, 90]) 
+                    generate_biometric_finger(i, pip_angle);
+            }
         }
     }
 }
+
+
+
 
 
 
@@ -269,19 +285,25 @@ module generate_biometric_finger(id, angle) {
                     cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
             }
             
-                                   // 🛠️ 엄지손가락 최종 교정: 불필요한 Y축 수동 오프셋을 걷어내고 회전축 정중앙 원점 정렬
+                                            // 🛠️ [엄지 원점 직결 최종 릴리즈]: 억지 이동 수식을 전면 제거하고 1마디 회전축에 완전히 박아버립니다.
             if (id == 0) {
                 let (
                     thumb_dip_pivot = pip_pivot_dia * 0.7,
                     thumb_dip_track = pip_track_width * 0.7
                 ) {
-                    translate([0, 0, 0]) { // 👈 편심을 유발하던 나눗셈 좌표를 0으로 초기화
-                        rotate([0, angle, 0]) { 
-                            distal_fingertip_core(d_len, thumb_dip_pivot, thumb_dip_track, outer_radius);
-                        }
+                    // 1. 억지로 밀어올리는 translate([0,0,p_len])을 과감히 삭제!
+                    // 2. 오직 네 손가락과 일치하는 수직 구부림 각도(-angle)와 엄지 고유 위상(90도)만 단일 행렬로 묶어 직결합니다.
+                    rotate([-angle, 0, 90]) { 
+                        distal_fingertip_core(d_len, thumb_dip_pivot, thumb_dip_track, outer_radius);
                     }
                 }
             }
+
+
+
+
+
+
 
  else {
                 // 일반 손가락 (검지, 중지, 약지, 새끼) 중간 마디 빌드
