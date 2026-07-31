@@ -1,3 +1,5 @@
+# 아직 작업중
+
 # 🦾 BioCerve-Hand: Parametric Prosthetic System & Signal Integration (v2.5)
 
 **BioCerve-Hand**는 인체 구조를 모방한 **오픈소스 파라메트릭 의수 플랫폼 및 사이버네틱스 통제 커널**입니다. 기하학적 공간 곡률 설계와 수학적 분산 에지 컴퓨팅을 활용하여 5개 손가락의 유기적 분리 독립 구동을 실시간 자율 유도합니다.
