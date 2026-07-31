@@ -124,8 +124,8 @@ tendon_dia   = 1.5;  // 보풀 가드 통과용 고강도 섬유선(Dyneema) 구
 // =================================================================
 // [3] 실시간 가동성 및 시뮬레이터 제어 (Simulator Setup)
 // =================================================================
-pip_angle = 0;      // 관절 구동 각도 입력 (0 ~ 90)
-render_target = 99; 
+pip_angle = 45;      // 관절 구동 각도 입력 (0 ~ 90)
+render_target = 2; 
 
 // =================================================================
 // [4] 메인 배포 파이프라인 (Main System Entry Point)
@@ -245,7 +245,7 @@ module generate_biometric_finger(id, angle) {
     // -------------------------------------------------------------
     // 뼈대 및 관절 실시간 행렬 변환 제어부
     translate([0, 0, p_len]) {
-        rotate([0, angle, 0]) {
+        rotate([0, -angle, 0]) {
             
             // PIP 중심 구슬 코어 (차집합 괄호 꼬임 완전 교정)
             difference() {
@@ -285,7 +285,7 @@ module generate_biometric_finger(id, angle) {
                     translate([-outer_radius, -5, 0]) cube([outer_radius * 2, 10, m_len]);
                     sphere(d = pip_track_width + 0.05);
                     
-                    rotate([0, angle, 0]) { 
+                    rotate([0, -angle, 0]) { 
                         // 깨끗하게 정돈된 소켓 중앙 오프셋 및 큐브 차집합 연산
                         translate([0, -(dip_track_width + 1) / 2, 0])
                             cube([pip_track_width + 1, dip_track_width + 1, pip_track_width + 1]);
@@ -322,7 +322,7 @@ module generate_biometric_finger(id, angle) {
                 // 🛠️ 최종 교정: 중간 마디 끝점으로 올려준 후, 정방향 각도(dip_angle)로 관절 구슬 중심 회전 집행
                                // 🛠️ 최종 궤적 결합: X축 편심을 0으로 원점 정렬하고, 중간 마디 끝에서 정방향 회전
                 translate([0, 0, m_len]) {
-                    rotate([0, dip_angle, 0]) {
+                    rotate([0, -dip_angle, 0]) {
                         distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, outer_radius);
                     }
                 }
