@@ -124,7 +124,7 @@ tendon_dia   = 1.5;  // 보풀 가드 통과용 고강도 섬유선(Dyneema) 구
 // =================================================================
 // [3] 실시간 가동성 및 시뮬레이터 제어 (Simulator Setup)
 // =================================================================
-pip_angle = 70;      // 관절 구동 각도 입력 (0 ~ 90)
+pip_angle = 30;      // 관절 구동 각도 입력 (0 ~ 90)
 render_target = 99; 
 
 // =================================================================
@@ -263,41 +263,64 @@ module generate_biometric_finger(id, angle) {
     // -------------------------------------------------------------
     // [B] 중간 관절(PIP) 상단 구슬 코어 + 중간 마디 프레임
     // -------------------------------------------------------------
-    // 뼈대 및 관절 실시간 행렬 변환 제어부
+     // 뼈대 및 관절 실시간 행렬 변환 제어부
     translate([0, 0, p_len]) {
         rotate([0, -angle, 0]) {
             
-            // PIP 중심 구슬 코어 (차집합 괄호 꼬임 완전 교정)
-            difference() {
-                union() {
-                    translate([-outer_radius, -5, 0]) cube([outer_radius * 2, 10, 5]);
-                    sphere(d = pip_pivot_dia);
-                    cylinder(h = 4, d1 = pip_pivot_dia, d2 = pip_pivot_dia * 0.8, center = false);
-                }
-                // C-커브 텐던 경로 터널 가공
-                rotate([90, 0, 0])
-                    rotate_extrude(angle = 90)
-                        translate([pip_pivot_dia / 2 + wall_thick / 2, 0, 0])
-                            circle(d = tendon_dia);
-                            
-                // 🛠️ 교정: 진입로 이중 나팔꽃 깔때기를 difference 안으로 편입하여 정확하게 깎아냄
-                translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -0.1])
-                    cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
-            }
-            
-                                            // 🛠️ [엄지 원점 직결 최종 릴리즈]: 억지 이동 수식을 전면 제거하고 1마디 회전축에 완전히 박아버립니다.
+            // 🛠️ [최종 정밀 분기] id에 따라 연산 구조 자체를 완전히 이원화하여 찌꺼기를 원천 차단합니다.
             if (id == 0) {
-                let (
-                    thumb_dip_pivot = pip_pivot_dia * 0.7,
-                    thumb_dip_track = pip_track_width * 0.7
-                ) {
-                    // 1. 억지로 밀어올리는 translate([0,0,p_len])을 과감히 삭제!
-                    // 2. 오직 네 손가락과 일치하는 수직 구부림 각도(-angle)와 엄지 고유 위상(90도)만 단일 행렬로 묶어 직결합니다.
-                    rotate([-angle, 0, 90]) { 
-                        distal_fingertip_core(d_len, thumb_dip_pivot, thumb_dip_track, outer_radius);
-                    }
+                // [맞는 상태 유지]: 예쁜 엄지 손가락 마디만 단독으로 깨끗하게 렌더링
+                // 상단의 difference 블록 바깥으로 완전히 격리되어 큐브 박스가 무조건 소멸합니다.
+                thumb_dip_pivot = pip_pivot_dia * 0.7;
+                thumb_dip_track = pip_track_width * 0.7;
+
+                rotate([angle, 0, 0]) { 
+                    distal_fingertip_core(d_len, thumb_dip_pivot, thumb_dip_track, outer_radius);
                 }
             }
+            else {
+                // [일반 손가락]: id가 0이 아닐 때만 보강 큐브와 PIP 관절 구슬을 빌드합니다.
+                difference() {
+                    union() {
+                        translate([-outer_radius, -5, 0]) cube([outer_radius * 2, 10, 5]);
+                        sphere(d = pip_pivot_dia);
+                        cylinder(h = 4, d1 = pip_pivot_dia, d2 = pip_pivot_dia * 0.8, center = false);
+                    }
+                    // C-커브 텐던 경로 터널 가공
+                    rotate([90, 0, 0])
+                        rotate_extrude(angle = 90)
+                            translate([pip_pivot_dia / 2 + wall_thick / 2, 0, 0])
+                                circle(d = tendon_dia);
+                                
+                    // 교정: 진입로 이중 나팔꽃 깔때기
+                    translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -0.1])
+                        cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
+                }
+            } // else 끝
+            
+       
+   
+
+            
+            
+                      // 🛠️ [엄지 2마디 독립 아키텍처 - 군더더기 없는 순정 완결 버전]
+if (id == 0) {
+    thumb_dip_pivot = pip_pivot_dia * 0.7;
+    thumb_dip_track = pip_track_width * 0.7;
+
+    // 1. [순수한 구형 관절]: 다른 손가락과 맞물릴 회전축 구슬 독립 배치
+    sphere(d = pip_pivot_dia);
+    cylinder(h = 4, d1 = pip_pivot_dia, d2 = pip_pivot_dia * 0.8, center = false);
+    
+    // 2. [맞는 상태 유지]: 위로 예쁘게 솟아오른 엄지 손끝 마디 단독 렌더링
+    // (억지로 깎아내던 복잡한 difference와 cube를 전면 삭제하여 깨짐 현상을 원천 차단합니다)
+    rotate([angle, 0, 0]) { 
+        distal_fingertip_core(d_len, thumb_dip_pivot, thumb_dip_track, outer_radius);
+    }
+}
+
+
+
 
 
 
