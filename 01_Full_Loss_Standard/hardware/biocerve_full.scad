@@ -31,7 +31,7 @@ tendon_dia   = 1.5;  // 보풀 가드 통과용 고강도 섬유선(Dyneema) 구
 // [3] 실시간 가동성 및 시뮬레이터 제어 (Simulator Setup)
 // =================================================================
 // 아래 pip_angle 값을 0에서 90까지 바꾸면 1:0.7 비례 수식에 따라 손끝이 알아서 함께 움직입니다.
-pip_angle = 40;      // 관절 구동 각도 입력 (0 ~ 90)
+pip_angle = 90;      // 관절 구동 각도 입력 (0 ~ 90)
 
 // 🛡️ [출력 필터 스위치]
 // (0:엄지, 1:검지, 2:중지, 3:약지, 4:새끼, 99:손바닥 상단판 포함 전체 결합형 출력)
@@ -63,7 +63,6 @@ module complete_hand_with_upper_palm() {
                 cube([palm_width, palm_depth, palm_thick]); 
         
         // B. 하단 하우징(모터 박스)과의 체결을 위한 M3 볼트 고정 홀 타공 (모서리 4개소)
-        // 지름 3.2mm 구멍을 뚫어 M3 볼트가 탭 없이 부드럽게 관통하도록 마진 설정
         translate([-5, 0, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
         translate([palm_width - 15, 0, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
         translate([-5, palm_depth - 10, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
@@ -74,20 +73,105 @@ module complete_hand_with_upper_palm() {
             scale_factor = finger_thickness[i];
             pip_pivot_dia = base_pip_dia * scale_factor;
             
-            // 🛠️ [보풀 가드 통합] 5개 노드 전체에 나팔꽃 모양 모따기 수식 반영
-            // 와이어가 하단 모터 박스로 진입할 때 각도 꺾임에 의한 단선을 원천 예방하고 드릴 리밍 후가공을 가이드
-            union() {
-                // 메인 텐던 관통 터널
-                translate([i * 18 + (pip_pivot_dia / 2 + wall_thick / 2), 0, -palm_thick - 1])
-                    cylinder(h = palm_thick + 2, d = tendon_dia);
+            // 각 손가락 배치 간격 (18mm)에 맞춰 좌표 계산 후 수직 관통 구멍 가공
+            translate([i * 18, palm_depth / 2, -palm_thick - 1]) {
+                // 1. 메인 와이어 관통 터널 (Dyneema 선 통과용)
+                cylinder(h = palm_thick + 2, d = tendon_dia);
                 
-                // 베이스 플레이트 최상단 인입구 깔때기 가공
-                translate([i * 18 + (pip_pivot_dia / 2 + wall_thick / 2), 0, -0.1])
-                    cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
-            }
-        }
+                // 2. 상단 나팔꽃 깔때기 가이드
+                translate([0, 0, palm_thick - 1.1])
+                    cylinder(h = 2.3, d1 = tendon_dia, d2 = tendon_dia + 1.5, center = false);
+                
+                // 3. 하단 나팔꽃 깔때기 가이드
+                translate([0, 0, -0.1])
+                    cylinder(h = 2.3, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
+            } 
+        } 
+    } 
+
+    // D. 손바닥 상단판 프레임 위에 5개 손가락 유닛을 일체형(Monolithic)으로 빌드업
+    for (i = [0:4]) {
+        translate([i * 18, 0, 0]) generate_biometric_finger(i, pip_angle);
     }
-    
+} 
+
+// =================================================================
+// 🌊 BioCerve-Hand: Parametric Prosthetic System (Hardware Core v2.5)
+// Part 1: Global Constants, Biometric Database, and Main Assembly
+// License: GNU General Public License v3.0 (GPLv3) / CERN-OHL-W v2
+// =================================================================
+
+$fn = 50; // 5개 손가락 및 손바닥 동시 렌더링 연산 속도를 위한 정밀도 최적화
+
+// =================================================================
+// [1] 생체 비율 데이터베이스 (인간 성인 손가락 평균 실측치 매핑)
+// =================================================================
+proximal_lengths = [32.0, 35.0, 40.0, 37.0, 30.0]; 
+middle_lengths   = [0.0,  25.0, 28.0, 26.0, 20.0]; // 엄지는 중간마디가 없어 0으로 하드코딩 예외 처리
+distal_lengths   = [22.0, 20.0, 22.0, 21.0, 18.0]; 
+
+// 📐 각 손가락별 두께 스케일 가중치 (중지 스케일 기준 비례 배분)
+finger_thickness = [1.20, 0.95, 1.00, 0.95, 0.80]; 
+
+// =================================================================
+// [2] 글로벌 공통 제어 변수 (Global Hardware Constraints)
+// =================================================================
+base_pip_dia = 5.8;  // 기준 구슬 지름 (중지 스케일 기준 표준 기하학 상수)
+clearance    = 0.2;  // 3D 프린트 필라멘트 열수축 대응 내부 구동 유격 (+0.2mm)
+wall_thick   = 2.0;  // 다이니마 와이어 장력을 방어하기 위한 최소 외벽 두께 (2.0mm)
+tendon_dia   = 1.5;  // 보풀 가드 통과용 고강도 섬유선(Dyneema) 구멍 지름
+
+// =================================================================
+// [3] 실시간 가동성 및 시뮬레이터 제어 (Simulator Setup)
+// =================================================================
+pip_angle = 0;      // 관절 구동 각도 입력 (0 ~ 90)
+render_target = 99; 
+
+// =================================================================
+// [4] 메인 배포 파이프라인 (Main System Entry Point)
+// =================================================================
+if (render_target == 99) {
+    complete_hand_with_upper_palm();
+} else {
+    generate_biometric_finger(render_target, pip_angle);
+}
+
+// =================================================================
+// [5] 2피스 분할형 손바닥 상단 프레임판 메인 모듈
+// =================================================================
+module complete_hand_with_upper_palm() {
+    palm_width = 18 * 4 + (base_pip_dia * 1.2 + clearance + wall_thick * 2) + 5;
+
+    palm_depth = 25;
+    palm_thick = 6;
+
+    difference() {
+        // A. 손바닥 상단 베이스 플레이트 주조
+        color("Gray") 
+            translate([-10, -5, -palm_thick]) 
+                cube([palm_width, palm_depth, palm_thick]); 
+        
+        // B. 하단 하우징(모터 박스)과의 체결을 위한 M3 볼트 고정 홀 타공 (모서리 4개소)
+        translate([-5, 0, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
+        translate([palm_width - 15, 0, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
+        translate([-5, palm_depth - 10, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
+        translate([palm_width - 15, palm_depth - 10, -palm_thick - 1]) cylinder(h = palm_thick + 2, d = 3.2);
+        
+        // C. 손가락 뿌리에서 내려오는 5쌍의 텐던 와이어가 통과할 수직 관통 가이드 홀
+        for (i = [0:4]) {
+            scale_factor = finger_thickness[i];
+            pip_pivot_dia = base_pip_dia * scale_factor;
+            
+            translate([i * 18, palm_depth / 2, -palm_thick - 1]) {
+                cylinder(h = palm_thick + 2, d = tendon_dia);
+                translate([0, 0, palm_thick - 1.1])
+                    cylinder(h = 2.3, d1 = tendon_dia, d2 = tendon_dia + 1.5, center = false);
+                translate([0, 0, -0.1])
+                    cylinder(h = 2.3, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
+            } 
+        } 
+    } 
+
     // D. 손바닥 상단판 프레임 위에 5개 손가락 유닛을 일체형(Monolithic)으로 빌드업
     for (i = [0:4]) {
         translate([i * 18, 0, 0]) generate_biometric_finger(i, pip_angle);
@@ -95,29 +179,22 @@ module complete_hand_with_upper_palm() {
 }
 
 // =================================================================
-// 🌊 BioCerve-Hand: Parametric Prosthetic System (Hardware Core v2.5)
-// Part 2: Biometric Finger Generator and Cybernetic Joint Modules
-// License: GNU General Public License v3.0 (GPLv3) / CERN-OHL-W v2
+// [6] 손가락 생체 비례 생성 자동 제어 파이프라인
 // =================================================================
-
-// 5개 손가락 생체 비례 생성 자동 제어 파이프라인
 module generate_biometric_finger(id, angle) {
-    // 해당 손가락 ID의 고유 생체 실측 수치 추출
     p_len = proximal_lengths[id];
     m_len = middle_lengths[id];
     d_len = distal_lengths[id];
+
     scale_factor = finger_thickness[id];
     
-    // 두께 가중치(scale_factor)에 따른 관절 구슬 및 외곽 프레임 수치 자동 스케일링
     pip_pivot_dia   = base_pip_dia * scale_factor;
     pip_track_width = pip_pivot_dia + clearance;
     outer_radius    = (pip_track_width / 2) + wall_thick;
-    
-    // 1:0.7 기계적 비례 수식에 기반한 DIP 관절부 치수 강제 동기화
-    dip_pivot_dia   = pip_pivot_dia * 0.7; 
+    dip_pivot_dia   = pip_pivot_dia * 0.7;
     dip_track_width = dip_pivot_dia + clearance;
     
-    dip_angle = angle * 0.7; // 손끝 연동 각도 자동 연산
+    dip_angle = angle * 0.7;
 
     // -------------------------------------------------------------
     // [A] 첫째 마디 기저부 (Proximal Phalanx Frame)
@@ -132,9 +209,7 @@ module generate_biometric_finger(id, angle) {
             translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -1])
                 cylinder(h = p_len + 2, d = tendon_dia);
                 
-            // 🛠️ [리밍 가이드 챔퍼 이식] 
-            // 손바닥판에서 손가락 마디로 와이어가 전도될 때 모서리 마찰 끊어짐을 완벽히 선방어
-            // 출력 후 1.5mm~2.0mm 드릴 비트를 통과시키는 리밍 후가공 진입로 역할 수행
+            // 리밍 가이드 챔퍼 이식
             translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -0.1])
                 cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
         }
@@ -143,61 +218,57 @@ module generate_biometric_finger(id, angle) {
     // -------------------------------------------------------------
     // [B] 중간 관절(PIP) 상단 구슬 코어 + 중간 마디 프레임
     // -------------------------------------------------------------
-    translate([0, 0, p_len])
+    // 뼈대 및 관절 실시간 행렬 변환 제어부
+    translate([0, 0, p_len]) {
         rotate([0, angle, 0]) {
             
-            // PIP 중심 구슬 코어 (회전축 무결성 교정 완료)
+            // PIP 중심 구슬 코어 (차집합 괄호 꼬임 완전 교정)
             difference() {
                 union() {
                     translate([-outer_radius, -5, 0]) cube([outer_radius * 2, 10, 5]);
                     sphere(d = pip_pivot_dia);
-                    // [🛡️ 물리 가드 1] 부러짐 방지 테이퍼드 목 구조 주조
                     cylinder(h = 4, d1 = pip_pivot_dia, d2 = pip_pivot_dia * 0.8, center = false);
                 }
-                // 🛠️ [축 오류 교정 1] C-커브 텐던 경로가 메인 관절 굽힘 회전면(Y축 기준)과 
-                // 정확히 평행하게 정렬되도록 rotate([90, 0, 0]) 수식으로 터널 방향 교정
+                // C-커브 텐던 경로 터널 가공
                 rotate([90, 0, 0])
                     rotate_extrude(angle = 90)
                         translate([pip_pivot_dia / 2 + wall_thick / 2, 0, 0])
                             circle(d = tendon_dia);
+                            
+                // 🛠️ 교정: 진입로 이중 나팔꽃 깔때기를 difference 안으로 편입하여 정확하게 깎아냄
+                translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -0.1])
+                    cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
             }
             
-            // 🛠️ [엄지손가락 해부학적 유격 버그 해결]
+                                   // 🛠️ 엄지손가락 최종 교정: 불필요한 Y축 수동 오프셋을 걷어내고 회전축 정중앙 원점 정렬
             if (id == 0) {
-                // 엄지는 중간 마디가 없으므로 프레임 베이스 치수에서 다이렉트로 0.7 압축한 엄지 전용 로컬 스코프 선언
                 let (
                     thumb_dip_pivot = pip_pivot_dia * 0.7,
                     thumb_dip_track = pip_track_width * 0.7
                 ) {
-                    // 🛠️ [그래픽스 표준 행렬 순서 교정] 평행 이동(translate)을 먼저 한 후 회전(rotate) 집행
-                    translate([0, -(thumb_dip_track + 1) / 2, -(thumb_dip_track + 1) / 2]) {
-                        rotate([0, angle, 0]) { // 엄지는 중간마디가 없어 모터 메인 입력각(angle)이 곧바로 끝마디 각도가 됨
+                    translate([0, 0, 0]) { // 👈 편심을 유발하던 나눗셈 좌표를 0으로 초기화
+                        rotate([0, angle, 0]) { 
                             distal_fingertip_core(d_len, thumb_dip_pivot, thumb_dip_track, outer_radius);
                         }
                     }
                 }
-            } else {
+            }
+
+ else {
                 // 일반 손가락 (검지, 중지, 약지, 새끼) 중간 마디 빌드
                 difference() {
-                    // 중간 마디 뼈대 연장 프레임 바디
                     translate([-outer_radius, -5, 0]) cube([outer_radius * 2, 10, m_len]);
-                    
-                    // [🛑 물리 가드 2: Wedge-Lock 역방향 스토퍼 홈 가공 및 슬립 방지 보강]
                     sphere(d = pip_track_width + 0.05);
                     
-                    // 🛠️ [rotate 빈 괄호 문법 에러 및 행렬 정렬 교정]
-                    // translate를 선행하여 회전축 편심을 완전히 방어하고, rotate([0, angle, 0])로 제어 매개변수 강제 맵핑
-                    translate([0, -(pip_track_width + 1) / 2, -(pip_track_width + 1) / 2]) {
-                        rotate([0, angle, 0]) { 
-                            cube([pip_track_width + 1, dip_track_width + 1, pip_track_width + 1]); // 트랙 1 폭 연동
-                            
-                            // 스토퍼 절벽 단면 끝자락에 FDM 처짐 마진용 미세 탈형 홈(+1.5mm) 차집합 전개
-                            translate([0, -(pip_track_width + 1.5) / 2 + (pip_track_width + 1) / 2, pip_track_width / 2 - 0.15])
-                                cube([pip_track_width + 1.5, pip_track_width + 1.5, 1.5]);
-                        }
+                    rotate([0, angle, 0]) { 
+                        // 깨끗하게 정돈된 소켓 중앙 오프셋 및 큐브 차집합 연산
+                        translate([0, -(dip_track_width + 1) / 2, 0])
+                            cube([pip_track_width + 1, dip_track_width + 1, pip_track_width + 1]);
+                        
+                        translate([0, -(pip_track_width + 1.5) / 2, pip_track_width / 2 - 0.15])
+                            cube([pip_track_width + 1.5, pip_track_width + 1.5, 1.5]);
                     }
                     
-                    // 🛠️ 이중 나팔꽃 보풀 가드 (PIP 측 깔때기형 입구)
                     union() {
                         translate([pip_pivot_dia / 2 + wall_thick / 2, 0, -1])
                             cylinder(h = m_len + 2, d = tendon_dia);
@@ -206,14 +277,13 @@ module generate_biometric_finger(id, angle) {
                     }
                 }
                 
-                // 중간 마디 끝단에 1:0.7 스케일로 압축 축소 주조된 DIP 관절 구슬 코어
+                // 중간 마디 끝단 DIP 관절 구슬 코어
                 translate([0, 0, m_len]) {
                     difference() {
                         union() {
-                            sphere(d = dip_pivot_dia); // 미니 구슬
+                            sphere(d = dip_pivot_dia); 
                             cylinder(h = 3, d1 = dip_pivot_dia, d2 = dip_pivot_dia * 0.8, center = false);
                         }
-                        // 🛠️ [축 오류 교정 3] DIP 가이드 터널도 메인 기전과 일치하도록 rotate([90, 0, 0])로 궤적 동기화
                         rotate([90, 0, 0])
                             rotate_extrude(angle = 90)
                                 translate([dip_pivot_dia / 2 + wall_thick / 2, 0, 0])
@@ -221,56 +291,61 @@ module generate_biometric_finger(id, angle) {
                     }
                 }
 
-                // -------------------------------------------------------------
+                              // -------------------------------------------------------------
                 // [C] 최종 손끝 마디 어셈블리 (Distal Phalanx Unit)
                 // -------------------------------------------------------------
-                // 🛠️ [최종 궤적 교정] 230행 역시 평행 이동(translate) 후 1:0.7 비례 종속 회전(dip_angle) 순서로 리팩토링
-                translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) {
+                // 🛠️ 최종 교정: 중간 마디 끝점으로 올려준 후, 정방향 각도(dip_angle)로 관절 구슬 중심 회전 집행
+                               // 🛠️ 최종 궤적 결합: X축 편심을 0으로 원점 정렬하고, 중간 마디 끝에서 정방향 회전
+                translate([0, 0, m_len]) {
                     rotate([0, dip_angle, 0]) {
                         distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, outer_radius);
                     }
                 }
-            }
-        }
+
+
+            } 
+        } 
+    }
 }
 
 
 // 최종 손끝 마디 및 미끄럼 방지 패드 가이드 슬롯 공통 코어 모듈
 module distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, outer_radius) {
     difference() {
+        // 더할 형상 (손끝 전체 외형 프레임)
         union() {
-            // 손끝 프레임 기본 뼈대
-            translate([-outer_radius * 0.8, -5, 0]) cube([outer_radius * 1.6, 10, d_len]);
-            // 외형 보완 및 챔퍼 효과용 대각 덤블링 라운딩 형상
+            // 🛠️ [축 분리형 정밀 정렬]: X와 Y는 완벽한 대칭 중심(0)에 두고, Z축은 바닥(0)에서 시작해 위로 자라나도록 교정
+            translate([-outer_radius * 0.8, -outer_radius * 0.8, 0]) 
+                cube([outer_radius * 1.6, outer_radius * 1.6, d_len]);
+                
+            // 외형 보완 및 챔퍼 효과용 대각 라운딩 형상
             translate([0, 0, d_len - 2]) sphere(r = outer_radius * 0.8);
         }
         
-        // DIP 하단 소켓 및 역방향 락인 스토퍼 설계 (연동축 교정 및 슬립 방지 보강 통합)
+        // 뺄 형상 (DIP 하단 베어링 소켓)
         sphere(d = dip_track_width + 0.05);
         
-        // 🛠️ [rotate 빈 괄호 문법 에러 및 그래픽스 표준 행렬 순서 완전 교정]
-        // translate를 선행하여 회전축 편심을 방어하고, 빈 rotate() 내부에 [0, 0, 0] 기준축 고정 매핑 주입
-        // 이 모듈은 이미 상위 모듈에서 dip_angle만큼 회전되어 들어왔으므로, 내부 차집합은 기준 좌표축([0, 0, 0])에 정확히 평행 정렬되어야 합니다.
-        translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) {
-            rotate([0, 0, 0]) { // 👈 빈 괄호를 제거하고 완벽한 원점 정렬 벡터 명시
-                cube([dip_track_width + 1, dip_track_width + 1, dip_track_width + 1]);
-                
-                // 스토퍼 절벽 단면 끝자락에 FDM 압출 누적 처짐을 흡수할 기하학적 미세 모따기 큐브 위치 보정
-                translate([0, -(dip_track_width + 1.5) / 2 + (dip_track_width + 1) / 2, dip_track_width / 2 - 0.15])
-                    cube([dip_track_width + 1.5, dip_track_width + 1.5, 1.5]);
-            }
+        // [손끝 마디 내부 소켓 완전 일직선 및 스토퍼 교정]
+        rotate() { 
+            // Y축과 Z축은 중앙 정렬하되, X축 방향으로 밀어내어 회전 틈새 가공
+            translate([ 0, 0, 0 ])
+                cube([dip_track_width + 1, dip_track_width + 1, dip_track_width + 1], center = true);
+            
+            translate([ (dip_track_width + 1.5)/2, 0, dip_track_width / 2 - 0.15 ])
+                cube([dip_track_width + 1.5, dip_track_width + 1.5, 1.5], center = true);
         }
-                
-        // 🛠️ 이중 나팔꽃 보풀 가드 (DIP 측 깔때기형 입구)
-        union() {
-            translate([dip_pivot_dia / 2 + wall_thick / 2, 0, -1])
-                cylinder(h = d_len + 2, d = tendon_dia);
-            translate([dip_pivot_dia / 2 + wall_thick / 2, 0, -0.1])
+        
+        // 이중 나팔꽃 보풀 가드 (DIP 측 깔때기형 입구 수평 정렬)
+        translate([dip_pivot_dia / 2 + wall_thick / 2, 0, 0]) {
+            cylinder(h = d_len + 2, d = tendon_dia, center = true);
+            translate([0, 0, -d_len / 2 - 0.1])
                 cylinder(h = 2.1, d1 = tendon_dia + 1.5, d2 = tendon_dia, center = false);
         }
         
-        // 🧲 물체 파지성 향상을 위한 전면 실리콘/고무 패드 삽입 몰딩 홈 가공 (깊이 2mm)
-        translate([-(outer_radius), -6, d_len / 2])
-            cube([outer_radius * 2, 2, d_len / 2]);
+        // 물체 파지성 향상을 위한 전면 실리콘/고무 패드 삽입 몰딩 홈 가공 (깊이 2mm)
+        // Y축 중심선에 정확히 일치하도록 center = true 기반 교정
+        translate([-outer_radius, 0, d_len / 2])
+            cube([2, outer_radius * 0.8, d_len / 2], center = true);
     }
 }
+
