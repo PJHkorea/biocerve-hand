@@ -140,7 +140,7 @@ module generate_biometric_finger(id, angle) {
         }
     }
 
-      // -------------------------------------------------------------
+    // -------------------------------------------------------------
     // [B] 중간 관절(PIP) 상단 구슬 코어 + 중간 마디 프레임
     // -------------------------------------------------------------
     translate([0, 0, p_len])
@@ -162,10 +162,19 @@ module generate_biometric_finger(id, angle) {
                             circle(d = tendon_dia);
             }
             
-            // 해부학적 예외 처리 예외 가드 (엄지는 중간 마디가 없으므로 바로 손끝 매핑)
+            // 🛠️ [엄지손가락 해부학적 유격 버그 해결]
             if (id == 0) {
-                rotate([0, dip_angle, 0]) {
-                    distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, outer_radius);
+                // 엄지는 중간 마디가 없으므로 프레임 베이스 치수에서 다이렉트로 0.7 압축한 엄지 전용 로컬 스코프 선언
+                let (
+                    thumb_dip_pivot = pip_pivot_dia * 0.7,
+                    thumb_dip_track = pip_track_width * 0.7
+                ) {
+                    // 🛠️ [그래픽스 표준 행렬 순서 교정] 평행 이동(translate)을 먼저 한 후 회전(rotate) 집행
+                    translate([0, -(thumb_dip_track + 1) / 2, -(thumb_dip_track + 1) / 2]) {
+                        rotate([0, angle, 0]) { // 엄지는 중간마디가 없어 모터 메인 입력각(angle)이 곧바로 끝마디 각도가 됨
+                            distal_fingertip_core(d_len, thumb_dip_pivot, thumb_dip_track, outer_radius);
+                        }
+                    }
                 }
             } else {
                 // 일반 손가락 (검지, 중지, 약지, 새끼) 중간 마디 빌드
@@ -176,16 +185,16 @@ module generate_biometric_finger(id, angle) {
                     // [🛑 물리 가드 2: Wedge-Lock 역방향 스토퍼 홈 가공 및 슬립 방지 보강]
                     sphere(d = pip_track_width + 0.05);
                     
-                    // 🛠️ [축 오류 교정 2 & 슬립 방지 가드 임베딩]
-                    // 기존 [0, 45, 0]으로 Y축을 또 돌려 측면이 깎이던 치명적 결함을 정밀 연동축 구조로 정상화.
-                    // 더불어 차단 절벽 끝단에 오버행 처짐을 흡수할 기하학적 미세 모따기 큐브를 결합하여 잠금 무결성 확보.
-                    rotate() {
-                        translate([0, -(pip_track_width + 1) / 2, -(pip_track_width + 1) / 2]) {
+                    // 🛠️ [rotate 빈 괄호 문법 에러 및 행렬 정렬 교정]
+                    // translate를 선행하여 회전축 편심을 완전히 방어하고, rotate([0, angle, 0])로 제어 매개변수 강제 맵핑
+                    translate([0, -(pip_track_width + 1) / 2, -(pip_track_width + 1) / 2]) {
+                        rotate([0, angle, 0]) { 
                             cube([pip_track_width + 1, dip_track_width + 1, pip_track_width + 1]); // 트랙 1 폭 연동
+                            
+                            // 스토퍼 절벽 단면 끝자락에 FDM 처짐 마진용 미세 탈형 홈(+1.5mm) 차집합 전개
+                            translate([0, -(pip_track_width + 1.5) / 2 + (pip_track_width + 1) / 2, pip_track_width / 2 - 0.15])
+                                cube([pip_track_width + 1.5, pip_track_width + 1.5, 1.5]);
                         }
-                        // 스토퍼 절벽 단면 끝자락에 FDM 처짐 마진용 미세 탈형 홈(+1.5mm) 차집합 전개
-                        translate([0, -(pip_track_width + 1.5) / 2, pip_track_width / 2 - 0.15])
-                            cube([pip_track_width + 1.5, pip_track_width + 1.5, 1.5]);
                     }
                     
                     // 🛠️ 이중 나팔꽃 보풀 가드 (PIP 측 깔때기형 입구)
@@ -215,10 +224,12 @@ module generate_biometric_finger(id, angle) {
                 // -------------------------------------------------------------
                 // [C] 최종 손끝 마디 어셈블리 (Distal Phalanx Unit)
                 // -------------------------------------------------------------
-                translate([0, 0, m_len])
+                // 🛠️ [최종 궤적 교정] 230행 역시 평행 이동(translate) 후 1:0.7 비례 종속 회전(dip_angle) 순서로 리팩토링
+                translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) {
                     rotate([0, dip_angle, 0]) {
                         distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, outer_radius);
                     }
+                }
             }
         }
 }
@@ -237,16 +248,17 @@ module distal_fingertip_core(d_len, dip_pivot_dia, dip_track_width, outer_radius
         // DIP 하단 소켓 및 역방향 락인 스토퍼 설계 (연동축 교정 및 슬립 방지 보강 통합)
         sphere(d = dip_track_width + 0.05);
         
-        // 🛠️ [축 오류 교정 및 슬립 가드 이식]
-        // 기존 회전축 버그를 수정하여 실제 손끝 과신전 하중 발생 시 물리 턱이 정확히 물리도록 전면 개편.
-        // 동시에 오버행 처짐 마진용 미세 도피 홈 큐브(+1.5mm)를 차집합 결합하여 사출 안정성 확보.
-        rotate() {
-            translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) {
+        // 🛠️ [rotate 빈 괄호 문법 에러 및 그래픽스 표준 행렬 순서 완전 교정]
+        // translate를 선행하여 회전축 편심을 방어하고, 빈 rotate() 내부에 [0, 0, 0] 기준축 고정 매핑 주입
+        // 이 모듈은 이미 상위 모듈에서 dip_angle만큼 회전되어 들어왔으므로, 내부 차집합은 기준 좌표축([0, 0, 0])에 정확히 평행 정렬되어야 합니다.
+        translate([0, -(dip_track_width + 1) / 2, -(dip_track_width + 1) / 2]) {
+            rotate([0, 0, 0]) { // 👈 빈 괄호를 제거하고 완벽한 원점 정렬 벡터 명시
                 cube([dip_track_width + 1, dip_track_width + 1, dip_track_width + 1]);
+                
+                // 스토퍼 절벽 단면 끝자락에 FDM 압출 누적 처짐을 흡수할 기하학적 미세 모따기 큐브 위치 보정
+                translate([0, -(dip_track_width + 1.5) / 2 + (dip_track_width + 1) / 2, dip_track_width / 2 - 0.15])
+                    cube([dip_track_width + 1.5, dip_track_width + 1.5, 1.5]);
             }
-            // 스토퍼 절벽 단면 끝자락에 FDM 압출 누적 처짐을 흡수할 기하학적 미세 모따기 큐브 추가
-            translate([0, -(dip_track_width + 1.5) / 2, dip_track_width / 2 - 0.15])
-                cube([dip_track_width + 1.5, dip_track_width + 1.5, 1.5]);
         }
                 
         // 🛠️ 이중 나팔꽃 보풀 가드 (DIP 측 깔때기형 입구)
