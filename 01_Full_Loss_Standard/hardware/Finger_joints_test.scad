@@ -27,7 +27,7 @@ wire_offset    = -3.5;  // 토크 극대화를 위한 와이어 가이드 Y축 �
 // 2: 정상 가동 및 애니메이션 모드 
 // 1: 이중 단면 인스펙션 투시 모드 
 // 3: 조립 해제 및 파트별 분해 검제 모드
-view_mode = 1;
+view_mode = 2;
 
 
 // =================================================================
@@ -209,6 +209,10 @@ module distal_segment() {
         translate([0, -joint_radius - 2, joint_radius]) 
             rotate([-20, 0, 0]) 
                 cube([finger_w * 2, finger_w, finger_w], center=true);
+        
+                  
+
+
     }
 }
 
