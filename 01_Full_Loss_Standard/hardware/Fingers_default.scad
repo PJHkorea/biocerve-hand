@@ -147,29 +147,22 @@ module independent_ball_bearing() {
 // 🦴 [파트 3] 아래쪽 프레임 (Distal Segment - 우측 커버 쉘) 토마토색
 // =================================================================
 module distal_segment() {
-    // 🪚 [상수 청소 완료] 파트 1에 존재하지 않는 쓰이지 않는 chamfer 계열 변수 3줄 완벽 제거!
-    distal_clear_x = 0.0;                    // 왼쪽 내부 홈 비우기용 X축 오프셋 (기존 0 적용)
-
-    // 🛞 [실물 핀 스펙 마스터 파라메터] 파트 1의 roller_pin_d 규격과 정확히 일치시킴
+    distal_clear_x = 0.0;                    // 왼쪽 내부 홈 비우기용 X축 오프셋
     roller_pin_d = 1.5;  // 가로 고정 핀 지름 (1.5mm)
 
     difference() {
+        // [1단계: 겉껍질 메인 골격 형성]
         union() {
             // 🟥 메인 아래쪽 기둥 골격 (finger_w, middle_bone_h 변수 연동)
             translate([0, 0, -(middle_bone_h/2 + joint_radius)]) 
                 cube([finger_w, finger_w, middle_bone_h], center=true);
             
-            // 🟢 [우측 감싸기 쉘] X=0 기준 오른쪽(X > 0) 영역만 남겨 구슬을 우측에서 고정
+            // 🟢 [우측 감싸기 쉘] X=0 기준 오른쪽 영역만 남겨 구슬을 우측에서 고정
             difference() {
                 sphere(r=outer_shell_r);
                 translate([-(box_size/2 - side_margin + clearance/2), 0, 0]) 
                     cube([box_size, box_size, box_size], center=true); 
                 
-                // =================================================================
-                // 🦴 [완벽 대칭 패치] 아래쪽 프레임 하단 쉘 변형 가공 (파트 1 기준 일치)
-                // =================================================================
-                // 파트 1 기준 코드의 50도 경사 컷 메커니즘을 100% 동일하게 복사 적용했습니다.
-                // 하단 궤적의 깎임 방향에 맞춰 각도 부호만 반대(-50)로 주어 완벽한 대칭형 반원을 구현합니다.
                 translate([0, -outer_shell_r, 0]) 
                     rotate([0, 30, -50])            
                         cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
@@ -178,7 +171,6 @@ module distal_segment() {
             // =================================================================
             // 🆕 🟢 [하부 감싸기 쉘] 상부 쉘과 100% 동일 복사 및 하단 높이 동기화
             // =================================================================
-            // 상부 쉘 가공 코드를 글자 그대로 계승하되, Z축 중심 높이만 하부로 맞추었습니다.
             translate([0, 0, -(middle_bone_h + joint_radius*2)]) {
                 difference() {
                     sphere(r=outer_shell_r);
@@ -191,42 +183,65 @@ module distal_segment() {
                 }
             }
             
-            // 📐 [스토퍼 B] 수동 기계적 락인(Wedge-Lock) 후방 턱 (대칭 변수 연동)
+            // 📐 [스토퍼 B] 수동 기계적 락인(Wedge-Lock) 후방 턱
             translate([finger_w/4, outer_shell_r - side_margin, 0]) 
                 cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
         }
         
-        // 🔒 [절대 고정] 가로 정중앙 X축 관통 메인 핀 홀 (파트 1과 완벽 일치)
+        // [2단계: 내부 공간 및 소켓 통로 최종 파내기]
+        
+        // 🔒 [상부 대응] 메인 관통 핀 홀
         rotate([0, 90, 0]) 
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
         
-        // 🛠️ [소프트웨어 동기화] 손바닥(앞쪽) 하단 기둥으로 탈출하는 메인 수직 와이어 가이드 홀
+        // 🛠️ 메인 수직 와이어 가이드 홀
         translate([0, wire_offset, -(middle_bone_h/2 + joint_radius)]) 
             cylinder(h=middle_bone_h * 2, r=tendon_dia/2, center=true);
-        
-        // 🪚 [상수 청소 완료] 음수 유격을 만들던 롤러 주머니 룸(cube) 연산 코드 완전 제거!
 
-        // ✨ [하부 단선 방지용 가로 핀 홀 - 불량 상수 교정 완료]
-        // 🎯 [정밀 대칭 매립]: 파트 1 기준 코드의 수식(wire_offset - 1.0)과 거울처럼 완벽한 동기화!
-        // 기존의 고정 상수 '-4.5'와 '-1'을 지우고, 파트 1과 유기적으로 대칭 구동되도록 완전히 수정했습니다.
+        // ✨ 하부 단선 방지용 가로 핀 홀
         target_pin_y = wire_offset - 1.0; 
-        target_pin_z = -joint_radius - 1.0 ; // 파트 1(+0.8)과 정반대인 하부(-1.0) 대칭 매핑! 2번째마디 구멍으로 들어가는 케이블이 턱에 거리나 체크하고 구멍 조금씩 수정하기 -0.8정도까지
-
+        target_pin_z = -joint_radius - 1.0; 
         translate([0, target_pin_y, target_pin_z])
             rotate([0, 90, 0])
                 cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
         
-        // 중심 구슬 안착 소켓 홈 (하단 기둥은 조립성 및 구동 유연성을 위해 +0.15 여유 마진 유지)
+        // 🟢 [상부 대응] 상부 중심 구슬 안착 소켓 홈
         sphere(r=joint_radius + clearance + 0.15);         
         
-        // 🔵 왼쪽(X < 0) 내부 홈 비우기 (중앙 구슬이 들어갈 공간 확보)
+        // 🔵 [상부 대응] 왼쪽 내부 홈 비우기 (중앙 구슬 공간 확보)
         intersection() {
             sphere(r=outer_shell_r + clearance);
-            translate([-(box_size/2 + clearance/2), 0, 0]) // 🪚 유령 변수 distal_clear_x 제거 후 완벽 정렬
+            translate([-(box_size/2 + clearance/2), 0, 0]) 
                 cube([box_size, box_size, box_size], center=true);
         }
+
+        // =================================================================
+        // 🕳️ 🔄 [하부 대응 - 신규 추가] 하부 유니온 쉘 내부 구형 안착 홈 파내기
+        // =================================================================
+        translate([0, 0, -(middle_bone_h + joint_radius*2)])
+            sphere(r=joint_radius + clearance + 0.15);
+
+        // 🔵 [하부 대응 - 신규 추가] 하부 왼쪽 내부 홈 비우기 (100% 기하학 동기화)
+        translate([0, 0, -(middle_bone_h + joint_radius*2)]) {
+            intersection() {
+                sphere(r=outer_shell_r + clearance);
+                translate([-(box_size/2 + clearance/2), 0, 0]) 
+                    cube([box_size, box_size, box_size], center=true);
+            }
+        }
+
+        // =================================================================
+        // 🔒 🔄 [하부 대응 - 신규 추가] 하부 관절 메인 관통 핀 홀 (가로축 롤러구멍)
+        // =================================================================
+        // 상부 메인 관통 핀 홀의 수식을 100% 똑같이 가져오되,
+        // 관통할 위치의 중심점만 하부 관절 회전 중심축(Z축)으로 정확히 일치시켰습니다.
+        translate([0, 0, -(middle_bone_h + joint_radius*2)])
+            rotate([0, 90, 0]) 
+                cylinder(h=box_size * 2, r=pin_dia/2, center=true);
     }
 }
+
+
 
 // =================================================================
 // 🎬 [최종 제어 파이프라인 및 조립 인터페이스]
