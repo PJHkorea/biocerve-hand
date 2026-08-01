@@ -255,15 +255,14 @@ module distal_segment() {
 }
 
 // =================================================================
-// 🦴 [파트 4 수정] 3번째 마디: 최종 끝마디 프레임 (Tip Segment) - 상하 완벽 반전
+// 🦴 [파트 4] 3번째 마디: 최종 끝마디 프레임 (Tip Segment) 
 // =================================================================
-// 하부의 둥근 결합 쉘 구조를 상부 원점(Z=0)으로 끌어올리고,
-// 네모 기둥 골격 블록이 아래쪽(-Z 방향)으로 자연스럽게 내려가도록 기하학 구조를 정반대로 뒤집었습니다.
 module tip_segment() {
     roller_pin_d = 1.5;  // 가로 고정 핀 지름 (1.5mm)
 
     difference() {
         // [1단계: 겉껍질 메인 골격 형성]
+
         union() {
             // 🟥 메인 끝마디 기둥 골격 (상하 반전 연산)
             // 기둥 중심축을 아래쪽으로 내려 기둥 블록 전체가 하방을 향하도록 고정합니다.
@@ -283,6 +282,8 @@ module tip_segment() {
                         cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
             }
             
+            
+            
             // 📐 [스토퍼 C] 손가락이 펴질 때 뒤로 꺾이지 않도록 지탱하는 후방 턱
             translate([-finger_w/4, outer_shell_r - side_margin, 0]) 
                 cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
@@ -298,9 +299,14 @@ module tip_segment() {
         translate([0, wire_offset, -(distal_bone_h/2 + joint_radius)]) 
             cylinder(h=distal_bone_h * 2, r=tendon_dia/2, center=true);
         
-        // ✨ [단선 방지용 핀 홀] 와이어 레일 초입에 맞춰 콤팩트하게 안착
+         // =================================================================
+        // 🕳️ 2. 차집합 구역에 이미 존재하던 오리지널 핀홀 수식을 아래와 같이 수정합니다.
+        // =================================================================
+        // ✨ [단선 방지용 핀 홀 - 상하 반전 구조 정밀 조준 완료]
         proximal_pin_y = wire_offset - 1.0;
-        proximal_pin_z = joint_radius + 0.8; // 상부 핏에 맞춰 수직 높이 양수(+) 보정
+        
+        // ⚠️ 부호를 양수(+)에서 음수(-)로 뒤집어, 허공이 아닌 사각형 기둥 살집 내부를 정확히 관통시킵니다.
+        proximal_pin_z = -joint_radius - 1.0; 
         
         translate([0, proximal_pin_y, proximal_pin_z])
             rotate([0, 90, 0])
