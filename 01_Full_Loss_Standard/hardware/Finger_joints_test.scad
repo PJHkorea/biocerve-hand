@@ -11,6 +11,7 @@ tendon_dia = 1.5;       // 다이니마 텐던 또는 생체 손가락 관통 �
 outer_shell_r = joint_radius + 2.5; // 외벽 두께 최적화 (최소 2.0mm 방어)
 box_size = outer_shell_r * 3;       // 커팅 박스 안전 크기
 
+
 // [2] 관통 핀 파라메터 (좌우 커버가 가로로 꽉 쥐어 고정하는 마스터 축)
 pin_dia = 2.0;          // 정중앙 가로(X축) 관통 실물 핀 지름 (2mm)
 
@@ -35,7 +36,7 @@ module proximal_segment() {
             // [좌측 감싸기 쉘] X=0 기준 왼쪽(X < 0) 영역만 남겨 구슬을 좌측에서 고정
             difference() {
                 sphere(r=outer_shell_r);
-                translate([box_size/2 - 0.4 + clearance/2, 0, 0]) cube([box_size, box_size, box_size], center=true); 
+                translate([box_size/2 - 1.5 + clearance/2, 0, 0]) cube([box_size, box_size, box_size], center=true); 
             }
             
             // ★ [스토퍼 A] 수동 기계적 락인(Wedge-Lock) 후방 턱
@@ -100,7 +101,7 @@ module distal_segment() {
             // [우측 감싸기 쉘] X=0 기준 오른쪽(X > 0) 영역만 남겨 구슬을 우측에서 고정
             difference() {
                 sphere(r=outer_shell_r);
-                translate([-(box_size/2 + clearance/2), 0, 0]) cube([box_size, box_size, box_size], center=true); 
+                translate([-(box_size/2 - 1.5 + clearance/2), 0, 0]) cube([box_size, box_size, box_size], center=true); 
             }
             
             // ★ [스토퍼 B] 수동 기계적 락인(Wedge-Lock) 후방 턱
@@ -126,7 +127,7 @@ module distal_segment() {
         // 떡지거나 걸리지 않고 손바닥 탈출구(`wire_offset`)로 미끄러져 들어오도록 유도하는 부채꼴 슬롯 컷
         rotate([0, 0, 0]) {
             translate([0, wire_offset, -joint_radius/2])
-                cylinder(h=joint_radius * 1.5, r1=tendon_dia/2 + 1.2, r2=tendon_dia/2, center=true);
+                cylinder(h=joint_radius * 1.5 - 1, r1=tendon_dia/2 + 1.2, r2=tendon_dia/2, center=true);
         }
         
         // 상단 전면부 회전 간섭 제거용 경사 컷
