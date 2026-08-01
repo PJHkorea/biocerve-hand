@@ -1,40 +1,34 @@
 // =================================================================
-// 🌊 BioCerve-Hand: Parametric Hardware Core (v9.0 레일 통합형 관절)
+// 🌊 BioCerve-Hand: Parametric Hardware Core (v9.1 통합 파라메터 마스터)
 // =================================================================
 $fn = 60; 
 
-// [1] 하드웨어 마스터 파라메터
-clearance = 0.25;       // 조립 및 회전 공차 (0.25mm)
-joint_radius = 5.5;     // 독립 구형 베어링(구슬) 반지름
-tendon_dia = 1.5;       // 다이니마 텐던 또는 생체 손가락 관통 코어 직경
-outer_shell_r = joint_radius + 2.5; // 외벽 두께 최적화
-box_size = outer_shell_r * 3;       // 커팅 박스 안전 크기
+// 🎯 [1] 마디 및 뼈대 치수 (기하학 핵심)
+finger_w       = 12;    // 손가락 마디의 가로/세로 두께 (기존 12)
+bone_h         = 15;    // 손가락 뼈대 기둥의 수직 길이 (기존 15)
+joint_radius   = 5.5;   // 내부 핵심 구슬(중앙 피벗 구체) 반지름 (기존 5.5)
 
-// 🌟 [새로 추가된 손가락 뼈대 치수 변수]
-finger_width = 12;      // 손가락 마디의 가로/세로 두께 (기존 12)
-bone_length = 15;       // 손가락 뼈대 기둥의 수직 길이 (기존 15)
+// 📐 [2] 하우징 및 스토퍼 파라메터
+outer_shell_r  = joint_radius + 2.5; // 외벽 껍데기 반지름 (최소 2.0mm 방어벽 자동 연동)
+stopper_thick  = 3;     // 기계적 락인 후방 스토퍼 턱의 Y축 두께 (기존 3)
 
-// [2] 관통 핀 파라메터
-pin_dia = 2.0;          
+// ⚙️ [3] 조립 공차 및 마진 (3D 프린트 출력/회전용)
+clearance      = 0.25;  // 기본 조립 및 가동 유격 공차 (0.25mm)
+side_margin    = 1.5;   // 좌우 커버 쉘 분할 커팅용 오프셋 마진 (기존 1.5)
+inner_clear_x  = 0.4;   // 파트 1 내부 홈 비우기용 X축 미세 마진 (기존 0.4)
+box_size       = outer_shell_r * 3; // 연산용 칼날(커팅 박스) 안전 크기 자동 계산
 
-// [3] 매스터 케이블 오프셋
-wire_offset = -3.5;     
+// 🔒 [4] 관통 핀 및 인장선(하드웨어 스펙 연동)
+pin_dia        = 2.0;   // 정중앙 가로(X축)를 관통하는 실물 고정 핀 지름 (2mm)
+tendon_dia     = 1.5;   // 구동용 다이니마 텐던(실) 관통 코어 직경 (1.5mm)
+wire_offset    = -3.5;  // 토크 극대화를 위한 와이어 가이드 Y축 편향 위치 (손바닥 방향)
 
-// [4] 시뮬레이션 및 디스플레이 모드
+// 🎬 [5] 시뮬레이션 및 디스플레이 모드
+// 2: 정상 가동 및 애니메이션 모드 
+// 1: 이중 단면 인스펙션 투시 모드 
+// 3: 조립 해제 및 파트별 분해 검제 모드
 view_mode = 2;
 
-
-// =================================================================
-// 🌊 BioCerve-Hand: 파라메터 확장 (파트 1용 신규 변수 추가)
-// =================================================================
-// 기존 마스터 파라메터에 아래 3가지 주요 외관 변수를 정의합니다.
-finger_w       = 12;    // 손가락 마디의 가로/세로 두께 (기존 12)
-bone_h         = 15;    // 기둥(뼈대)의 수직 길이 (기존 15)
-stopper_thick  = 3;     // 스토퍼 후방 턱의 Y축 두께 (기존 3)
-
-// 내부 연산 안정성을 위한 자동 계산 서브 변수
-side_margin    = 1.5;   // 좌우 쉘 커팅을 위한 마스터 오프셋 마진 (기존 1.5)
-inner_clear_x  = 0.4;   // 내부 홈 비우기용 X축 미세 마진 (기존 0.4)
 
 // =================================================================
 // 🦴 [파트 1] 위쪽 프레임 (Proximal Segment - 좌측 커버 쉘)
@@ -42,7 +36,7 @@ inner_clear_x  = 0.4;   // 내부 홈 비우기용 X축 미세 마진 (기존 0.
 module proximal_segment() {
     difference() {
         union() {
-            // 🟥 메인 위쪽 기둥 골격 (12, 15를 변수화)
+            // 🟥 메인 위쪽 기둥 골격 (finger_w, bone_h 변수 연동)
             translate([0, 0, bone_h/2 + joint_radius]) 
                 cube([finger_w, finger_w, bone_h], center=true);
             
@@ -58,7 +52,7 @@ module proximal_segment() {
                 cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
         }
         
-        // 🔒 [절대 고정] 가로 정중앙 X축 관통 핀 홀 (길이는 box_size 활용 안전 마진 확보)
+        // 🔒 [절대 고정] 가로 정중앙 X축 관통 핀 홀 (가로 방향으로 확실하게 관통)
         rotate([0, 90, 0]) 
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
         
@@ -82,22 +76,21 @@ module proximal_segment() {
 }
 
 
-
 // =================================================================
 // 🎡 [교정 파트 2] 세로 도르래 레일 핵심 코어 구슬 (Central Pivot Sphere)
 // =================================================================
 module independent_ball_bearing() {
     // 내부 연산을 위한 서브 파라메터
     // 와이어가 완전히 구슬 안쪽으로 안전하게 파고들도록 궤적 반지름을 정의합니다.
-    rail_track_r = joint_radius; 
+    rail_track_r  = joint_radius; 
     rail_groove_r = tendon_dia / 2 + clearance; // 와이어 굵기 + 여유 공차
 
     difference() {
-        // 🟢 기본 무결점 구슬 코어
+        // 🟢 기본 무결점 구슬 코어 (joint_radius 마스터 변수 연동)
         sphere(r=joint_radius); 
         
         // 🔒 [절대 고정] 가로 정중앙 X축 관통 핀 홀
-        // 관통력 확보를 위해 길이를 확실하게 (box_size 활용) 늘려줍니다.
+        // 관통력 확보를 위해 길이를 통합 규격(box_size * 2)으로 관통합니다.
         rotate([0, 90, 0]) 
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
         
@@ -106,7 +99,6 @@ module independent_ball_bearing() {
         rotate([0, 90, 0]) { 
             rotate_extrude() {
                 // 회전축에서 rail_track_r 만큼 떨어진 곳에 홈을 파낼 원을 배치합니다.
-                // 팁: 실이 완전히 안착하게 하려면 rail_track_r에서 고정 상수 대신 미세 조정을 할 수도 있습니다.
                 translate([rail_track_r, 0, 0]) 
                     circle(r=rail_groove_r); 
             }
@@ -144,7 +136,7 @@ module distal_segment() {
                 cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
         }
         
-        // 🔒 [절대 고정] 가로 정중앙 X축 관통 핀 홀
+        // 🔒 [절대 고정] 가로 정중앙 X축 관통 핀 홀 (파트 1, 2와 칼같이 일치시킴)
         rotate([0, 90, 0]) 
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
         
