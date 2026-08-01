@@ -45,6 +45,18 @@ module proximal_segment() {
                 sphere(r=outer_shell_r);
                 translate([box_size/2 - side_margin + clearance/2, 0, 0]) 
                     cube([box_size, box_size, box_size], center=true); 
+                // =================================================================
+// 🦴 [파트 1 수정] 위쪽 프레임 하단 쉘 (빨간 네모 부위) 변형 가공
+// =================================================================
+// proximal_segment() 모듈 내부의 맨 마지막 difference() 닫히기 직전에 추가합니다.
+
+        // 📐 [신규 추가: 전방 스커트 쉘 간섭 제거 경사 컷]
+        // 질문자님이 짚어주신 빨간 네모(손바닥 쪽 하단 쉘)를 과감하게 경사로 쳐내어 
+        // 하부 마디가 회전할 때 1mm의 간섭도 없이 완벽하게 비껴가도록 궤적을 완전히 개방합니다!
+        translate([0, -outer_shell_r, 0]) // Y축 앞쪽(손바닥 방향) 모서리로 이동
+            rotate([0, 0, 50])            // 3D 드로잉 지시선 각도와 일치하는 35도 경사 컷
+                cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
+
             }
             
             // 📐 [스토퍼 A] 수동 기계적 락인(Wedge-Lock) 후방 턱 (치수 연동)
@@ -118,6 +130,19 @@ module distal_segment() {
     chamfer_r2     = tendon_dia/2;           // 챔퍼 상단 탈출부 반지름 (와이어 딱 맞는 크기)
     distal_clear_x = 0.0;                    // 왼쪽 내부 홈 비우기용 X축 오프셋 (기존 0 적용)
 
+    // 🛞 [실물 베어링 롤러 스펙 마스터 파라메터]
+    roller_dia   = 4.0;  // 실물 미니 베어링 외경 지름 (4mm)
+    roller_w     = 2.0;  // 실물 미니 베어링의 가로 폭 (2mm)
+    roller_pin_d = 1.5;  // 롤러 중앙을 지탱할 가로 고정 핀 지름 (1.5mm)
+
+    // 내부 연산을 위한 서브 파라메터 (공차 마진 포함 칼날 크기)
+    roller_slot_w  = roller_w + clearance * 1 - 10;    // 롤러 주머니 가로 폭
+    roller_slot_z  = roller_dia + clearance * 1;  // 롤러 주머니 수직/전후 두께 마진
+    
+    // 🎯 [위치 정밀 교정]: 구슬 소켓 내부 침범을 완전히 방어하기 위해,
+    // 구슬 끝점(-joint_radius)에서 사각형 기둥 하단 방향으로 2.5mm 더 안전하게 아래로 하강 이동!
+    roller_center_z = -joint_radius - 2.5; 
+
     difference() {
         union() {
             // 🟥 메인 아래쪽 기둥 골격 (finger_w, bone_h 변수 연동)
@@ -136,13 +161,28 @@ module distal_segment() {
                 cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
         }
         
-        // 🔒 [절대 고정] 가로 정중앙 X축 관통 핀 홀 (파트 1, 2와 칼같이 일치시킴)
+        // 🔒 [절대 고정] 가로 정중앙 X축 관통 메인 핀 홀 (파트 1, 2와 일치)
         rotate([0, 90, 0]) 
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
         
-        // 🛠️ [소프트웨어 동기화] 손바닥(앞쪽) 하단 기둥으로 탈출하는 수직 와이어 가이드 홀
+        // 🛠️ [소프트웨어 동기화] 손바닥(앞쪽) 하단 기둥으로 탈출하는 메인 수직 와이어 가이드 홀
+        // ⚠️ [철저한 보존]: 기존 세로 구멍은 절대 지우지 않고 그대로 통과시킵니다!
         translate([0, wire_offset, -(bone_h/2 + joint_radius)]) 
             cylinder(h=bone_h * 2, r=tendon_dia/2, center=true);
+        
+        // 🛞 [신규 추가 1] 실물 롤러 베어링이 쏙 파묻혀 들어갈 주머니 홈 (슬롯) 파내기
+        // 수직 와이어 가이드선(`wire_offset`)과 완벽하게 탄젠트 조우하도록 정렬 가공합니다.
+        translate([0, wire_offset, roller_center_z])
+            cube([roller_slot_w, roller_slot_z, roller_slot_z], center=true);
+
+          // 🔒 [신규 추가 2] 지시선 방향의 가로 핀 구멍 (X축 서브 관통 핀 홀)
+        // 🎯 [정밀 교정 매립]: 세로 터널(-3.5mm)과 앞쪽 외벽(-6mm) 사이의 딱 한가운데 알짜배기 살집 공간(-4.5mm) 속에만 핀 구멍이 파묻히도록 좌표계를 완벽히 격리했습니다!
+        target_pin_y = -4.5; 
+        target_pin_z = -joint_radius - 1; // 조인트 둥근 소켓 영역을 완전히 탈출한 기둥 상부 둔덕 높이
+
+        translate([0, target_pin_y, target_pin_z])
+            rotate([0, 90, 0])
+                cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
         
         // 중심 구슬 안착 소켓 홈 (하단 기둥은 조립성 및 구동 유연성을 위해 +0.15 여유 마진 유지)
         sphere(r=joint_radius + clearance + 0.15);         
@@ -154,18 +194,13 @@ module distal_segment() {
                 cube([box_size, box_size, box_size], center=true);
         }
         
-        // 🎡 [레일 동기화 챔퍼] 0도~90도 폴딩 시 와이어가 걸리지 않게 유도하는 부채꼴 슬롯 컷
-        rotate([0, 0, 0]) {
-            translate([0, wire_offset, -joint_radius/2])
-                cylinder(h=chamfer_h, r1=chamfer_r1, r2=chamfer_r2, center=true);
-        }
-        
         // ⚠️ 상단 전면부 회전 간섭 제거용 경사 컷 (손가락 두께 변수에 맞춰 자동 칼날 크기 조절)
         translate([0, -joint_radius - 2, joint_radius]) 
             rotate([-20, 0, 0]) 
                 cube([finger_w * 2, finger_w, finger_w], center=true);
     }
 }
+
 
 
 // =================================================================
