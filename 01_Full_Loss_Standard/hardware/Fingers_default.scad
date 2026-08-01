@@ -243,8 +243,8 @@ module distal_segment() {
         // =================================================================
     
         
-        // [수정된 마스터 물리 좌표] 기둥 맨 바닥면에서 1.5mm 위쪽 안전지대 매립
-        calculated_pin_z = -(middle_bone_h + joint_radius) + 1.5; 
+        // [수정된 마스터 물리 좌표] 기둥 맨 바닥면에서 1.2mm 위쪽 안전지대 매립
+        calculated_pin_z = -(middle_bone_h + joint_radius) + 1.2; 
 
         translate([0, target_pin_y, calculated_pin_z])
             rotate([0, 90, 0])
