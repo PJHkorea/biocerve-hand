@@ -19,7 +19,7 @@ middle_bone_h = proximal_bone_h * 0.7; // 계산값: 15.12mm
 distal_bone_h   = proximal_bone_h * 0.5; // 계산값: 10.8mm
 
 
-joint_radius   = 5.5;   // 내부 핵심 구슬(중앙 피벗 구체) 반지름 (기존 5.5)
+joint_radius   = finger_w * (5.5 / 12); // [수식 동기화] 볼 크기를 손가락 두께에 종속 
 
 // 📐 [2] 하우징 및 스토퍼 파라메터
 outer_shell_r  = joint_radius + 2.5; // 외벽 껍데기 반지름 (최소 2.0mm 방어벽 자동 연동)
