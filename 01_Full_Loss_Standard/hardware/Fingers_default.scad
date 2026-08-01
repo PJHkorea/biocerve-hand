@@ -230,10 +230,12 @@ module distal_segment() {
             }
         }
 
+      // =================================================================
+        // 🔒 🎯 [절대 사수] 하부 관절 메인 관통 핀 홀 (가로축 롤러구멍)
         // =================================================================
-        // 🔒 🎯 [절대 사수] 하부 관절 메인 관통 핀 홀 (화면 속 검은 동그라미)
-        // =================================================================
-        // 나중에 초록색 관절 구슬과 결합할 핵심 축이므로 하부 쉘 정중앙에 절대 고정합니다.
+        // 💡 [3D 프린팅 필독]: 이 구멍은 상부의 'independent_ball_bearing' 구슬과 
+        // 100% 동일한 규격의 두 번째 구슬이 안착될 결합 축입니다.
+        // 출력 시, 상단의 'independent_ball_bearing' 구슬 부품을 총 [2개] 출력해 주세요.
         translate([0, 0, -(middle_bone_h + joint_radius*2)])
             rotate([0, 90, 0]) 
                 cylinder(h=box_size * 2, r=pin_dia/2, center=true);
@@ -261,10 +263,17 @@ module distal_segment() {
 module final_assembled_joint() {
     current_angle = -90 * $t; // 오픈스캐드 자체 애니메이션 대응 (0도 ~ -90도 회전 실시간 구동)
 
+    // [상부 관절 조립라인]
     color("LightBlue") proximal_segment();
     color("Lime") independent_ball_bearing();
 
-    // 세로 레일을 타고 부드럽게 연동되어 회전하는 아래쪽 마디
+    // [하부 관절 전용 - 신규 추가된 두 번째 초록 구슬 안착]
+    // ⚠️ 토마토색 마디가 회전할 때 구슬 축은 제자리에 고정되어 있어야 하므로, 
+    // rotate 외부 공간에 단독 배치하여 하단 관절 중심축 높이로 내려줍니다.
+    translate([0, 0, -(middle_bone_h + joint_radius * 2)])
+        color("Lime") independent_ball_bearing();
+
+    // 세로 레일을 타고 부드럽게 연동되어 회전하는 아래쪽 마디 (토마토색)
     rotate([current_angle, 0, 0])
         color("Tomato") distal_segment();
 }
@@ -284,15 +293,21 @@ if (view_mode == 2) {
     // 손가락 두께(finger_w)와 기둥 길이(bone_h)에 비례하여 자동으로 멀어지도록 수식화했습니다.
     explode_distance = finger_w * 1.5; // 부품이 양옆으로 벌어질 안전 거리
 
-    // [좌측] 위쪽 프레임 분해 배치
+    // 1. [좌측] 위쪽 프레임 분해 배치
     color("LightBlue") 
         translate([-explode_distance, 0, 0]) proximal_segment(); 
     
-    // [중앙] 제어 구슬 코어 배치
+    // 2. [중앙 상단] 첫 번째 제어 구슬 코어 배치
     color("Lime") 
         translate([0, 0, joint_radius]) independent_ball_bearing(); 
-    
-    // [우측] 아래쪽 프레임 분해 배치 (bone_h와 joint_radius 수식 연동으로 겹침 원천 차단)
+        
+    // 3. [중앙 하단 - 신규 추가] 두 번째 제어 구슬 코어 분해 배치
+    // 하단 관절 위치 축 기준에서 시각적 확인이 편하도록 위쪽으로 살짝 폭파 정렬
+    color("Lime")
+        translate([0, 0, -(middle_bone_h + joint_radius * 2) + joint_radius]) 
+            independent_ball_bearing();
+
+    // 4. [우측] 아래쪽 프레임 분해 배치 (bone_h와 joint_radius 수식 연동으로 겹침 원천 차단)
     color("Tomato") 
         translate([explode_distance, 0, middle_bone_h/2 + joint_radius*2]) 
             rotate([0, 180, 0]) distal_segment(); 
