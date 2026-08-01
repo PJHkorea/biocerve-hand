@@ -35,7 +35,7 @@ module proximal_segment() {
             // [좌측 감싸기 쉘] X=0 기준 왼쪽(X < 0) 영역만 남겨 구슬을 좌측에서 고정
             difference() {
                 sphere(r=outer_shell_r);
-                translate([box_size/2 + clearance/2, 0, 0]) cube([box_size, box_size, box_size], center=true); 
+                translate([box_size/2 - 0.4 + clearance/2, 0, 0]) cube([box_size, box_size, box_size], center=true); 
             }
             
             // ★ [스토퍼 A] 수동 기계적 락인(Wedge-Lock) 후방 턱
@@ -54,7 +54,7 @@ module proximal_segment() {
         // 오른쪽(X > 0) 내부 홈 비우기 (중앙 구슬이 들어갈 공간 공간 확보)
         intersection() {
             sphere(r=outer_shell_r + clearance);
-            translate([box_size/2 + clearance/2, 0, 0]) cube([box_size, box_size, box_size], center=true);
+            translate([box_size/2 - 0.4 + clearance/2, 0, 0]) cube([box_size, box_size, box_size], center=true);
         }
         
         // 앞쪽 하단 구동 간섭 방지 오픈 영역
@@ -114,7 +114,7 @@ module distal_segment() {
         // 🛠️ [소프트웨어 동기화] 손바닥(앞쪽) 하단 기둥으로 탈출하는 수직 와이어 가이드 홀
         translate([0, wire_offset, -(15/2 + joint_radius)]) cylinder(h=25, r=tendon_dia/2, center=true);
         
-        sphere(r=joint_radius + clearance);         // 중심 구슬 안착 소켓 홈
+        sphere(r=joint_radius + clearance + 0.15);         // 중심 구슬 안착 소켓 홈 +0.15 여유
         
         // 왼쪽(X < 0) 내부 홈 비우기 (중앙 구슬이 들어갈 공간 공간 확보)
         intersection() {
