@@ -144,7 +144,7 @@ module independent_ball_bearing() {
 
 
 // =================================================================
-// 🦴 [파트 3] 아래쪽 프레임 (Distal Segment - 우측 커버 쉘) 토마토색
+// 🦴 [완벽 정렬] 아래쪽 프레임 (Distal Segment - 우측 커버 쉘) 토마토색
 // =================================================================
 module distal_segment() {
     distal_clear_x = 0.0;                    // 왼쪽 내부 홈 비우기용 X축 오프셋
@@ -190,7 +190,7 @@ module distal_segment() {
         
         // [2단계: 내부 공간 및 소켓 통로 최종 파내기]
         
-        // 🔒 [상부 대응] 메인 관통 핀 홀
+        // 🔒 [절대 고정] 상부 메인 관통 핀 홀 (Z=0 중심축 고정)
         rotate([0, 90, 0]) 
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
         
@@ -198,17 +198,17 @@ module distal_segment() {
         translate([0, wire_offset, -(middle_bone_h/2 + joint_radius)]) 
             cylinder(h=middle_bone_h * 2, r=tendon_dia/2, center=true);
 
-        // ✨ 하부 단선 방지용 가로 핀 홀
+        // ✨ 상부 단선 방지용 가로 미세 핀 홀 (Z = -joint_radius - 1.0)
         target_pin_y = wire_offset - 1.0; 
         target_pin_z = -joint_radius - 1.0; 
         translate([0, target_pin_y, target_pin_z])
             rotate([0, 90, 0])
                 cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
         
-        // 🟢 [상부 대응] 상부 중심 구슬 안착 소켓 홈
+        // 🟢 상부 중심 구슬 안착 소켓 홈
         sphere(r=joint_radius + clearance + 0.15);         
         
-        // 🔵 [상부 대응] 왼쪽 내부 홈 비우기 (중앙 구슬 공간 확보)
+        // 🔵 왼쪽 내부 홈 비우기 (중앙 구슬 공간 확보)
         intersection() {
             sphere(r=outer_shell_r + clearance);
             translate([-(box_size/2 + clearance/2), 0, 0]) 
@@ -216,12 +216,12 @@ module distal_segment() {
         }
 
         // =================================================================
-        // 🕳️ 🔄 [하부 대응 - 신규 추가] 하부 유니온 쉘 내부 구형 안착 홈 파내기
+        // 🕳️ 🔄 하부 유니온 쉘 내부 구형 안착 홈 파내기
         // =================================================================
         translate([0, 0, -(middle_bone_h + joint_radius*2)])
             sphere(r=joint_radius + clearance + 0.15);
 
-        // 🔵 [하부 대응 - 신규 추가] 하부 왼쪽 내부 홈 비우기 (100% 기하학 동기화)
+        // 🔵 하부 왼쪽 내부 홈 비우기 (100% 기하학 동기화)
         translate([0, 0, -(middle_bone_h + joint_radius*2)]) {
             intersection() {
                 sphere(r=outer_shell_r + clearance);
@@ -231,15 +231,27 @@ module distal_segment() {
         }
 
         // =================================================================
-        // 🔒 🔄 [하부 대응 - 신규 추가] 하부 관절 메인 관통 핀 홀 (가로축 롤러구멍)
+        // 🔒 🎯 [절대 사수] 하부 관절 메인 관통 핀 홀 (화면 속 검은 동그라미)
         // =================================================================
-        // 상부 메인 관통 핀 홀의 수식을 100% 똑같이 가져오되,
-        // 관통할 위치의 중심점만 하부 관절 회전 중심축(Z축)으로 정확히 일치시켰습니다.
+        // 나중에 초록색 관절 구슬과 결합할 핵심 축이므로 하부 쉘 정중앙에 절대 고정합니다.
         translate([0, 0, -(middle_bone_h + joint_radius*2)])
             rotate([0, 90, 0]) 
                 cylinder(h=box_size * 2, r=pin_dia/2, center=true);
+
+    // =================================================================
+        // ✨ 🔄 [하부 대응 - 정밀 물리 좌표 보정 완료]
+        // =================================================================
+    
+        
+        // [수정된 마스터 물리 좌표] 기둥 맨 바닥면에서 1.5mm 위쪽 안전지대 매립
+        calculated_pin_z = -(middle_bone_h + joint_radius) + 1.5; 
+
+        translate([0, target_pin_y, calculated_pin_z])
+            rotate([0, 90, 0])
+                cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
     }
 }
+
 
 
 
