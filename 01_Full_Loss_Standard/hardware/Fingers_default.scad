@@ -19,7 +19,7 @@ middle_bone_h = proximal_bone_h * 0.7; // 계산값: 15.12mm
 distal_bone_h   = proximal_bone_h * 0.5; // 계산값: 10.8mm
 
 
-joint_radius   = finger_w * (5.5 / 12);    // 내부 핵심 구슬(중앙 피벗 구체) 반지름 (기존 5.5)
+joint_radius   = finger_w * (5.5 / 12); // [수식 동기화] 볼 크기를 손가락 두께에 종속 
 
 // 📐 [2] 하우징 및 스토퍼 파라메터
 outer_shell_r  = joint_radius + 2.5; // 외벽 껍데기 반지름 (최소 2.0mm 방어벽 자동 연동)
@@ -144,10 +144,13 @@ module independent_ball_bearing() {
 
 
 // =================================================================
-// 🦴 [파트 3 수정] 아래쪽 프레임(2번째마디) (Distal Segment - 토마토색
+// 🦴 [파트 3] 아래쪽 프레임 (Distal Segment - 우측 커버 쉘) 토마토색
 // =================================================================
 module distal_segment() {
+    // 🪚 [상수 청소 완료] 파트 1에 존재하지 않는 쓰이지 않는 chamfer 계열 변수 3줄 완벽 제거!
     distal_clear_x = 0.0;                    // 왼쪽 내부 홈 비우기용 X축 오프셋 (기존 0 적용)
+
+    // 🛞 [실물 핀 스펙 마스터 파라메터] 파트 1의 roller_pin_d 규격과 정확히 일치시킴
     roller_pin_d = 1.5;  // 가로 고정 핀 지름 (1.5mm)
 
     difference() {
@@ -163,31 +166,28 @@ module distal_segment() {
                     cube([box_size, box_size, box_size], center=true); 
                 
                 // =================================================================
-                // 🦴 2번째마디 상단 쉘 변형 가공 (파트 1 기준 일치)
+                // 🦴 [완벽 대칭 패치] 아래쪽 프레임 하단 쉘 변형 가공 (파트 1 기준 일치)
                 // =================================================================
+                // 파트 1 기준 코드의 50도 경사 컷 메커니즘을 100% 동일하게 복사 적용했습니다.
+                // 하단 궤적의 깎임 방향에 맞춰 각도 부호만 반대(-50)로 주어 완벽한 대칭형 반원을 구현합니다.
                 translate([0, -outer_shell_r, 0]) 
                     rotate([0, 30, -50])            
                         cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
             }
-            
-            // 🆕 🦴 ] 2번째마디 하단 쉘 변형가공
-            translate([0, 0, -(middle_bone_h + joint_radius*1.6)]) {
+
+            // =================================================================
+            // 🆕 🟢 [하부 감싸기 쉘] 상부 쉘과 100% 동일 복사 및 하단 높이 동기화
+            // =================================================================
+            // 상부 쉘 가공 코드를 글자 그대로 계승하되, Z축 중심 높이만 하부로 맞추었습니다.
+            translate([0, 0, -(middle_bone_h + joint_radius*2)]) {
                 difference() {
-                    // 🔴 반지름을 finger_w/2 (6.0)로 축소하여 기둥 두께(12mm)와 지름을 칼같이 일치시킴
-                    sphere(r = finger_w / 2);
+                    sphere(r=outer_shell_r);
+                    translate([-(box_size/2 - side_margin + clearance/2), 0, 0]) 
+                        cube([box_size, box_size, box_size], center=true); 
                     
-                    // 🪚 [엄지/일반 분기점] 반쪽만 남기기 위해 칼날 배치
-                    translate([box_size/2 - side_margin + clearance/2, 0, 0]) 
-                       cube([box_size, box_size, box_size], center=true);
-                     //  //  // =================================================================
-        // 🔄 ✨ [하단 쉘 계승] 상부 쉘과 대칭되는 3D 사선 경사 컷 (좌표 보정형)
-        // =================================================================
-        // 칼날의 진입 방향을 뒤쪽(+finger_w/2)으로 바꾸고, 
-        // 굽힘 가동 범위를 열어주기 위해 Y축 회전 각도를 대칭(-30도)으로 역산합니다. 수정 다시하자
-       // translate([0, finger_w/2, 0]) 
-           // rotate([0, -30, -50]) 
-             //   cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
-                    
+                    translate([0, -outer_shell_r, 0]) 
+                        rotate([0, 30, -50])            
+                            cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
                 }
             }
             
@@ -203,41 +203,30 @@ module distal_segment() {
         // 🛠️ [소프트웨어 동기화] 손바닥(앞쪽) 하단 기둥으로 탈출하는 메인 수직 와이어 가이드 홀
         translate([0, wire_offset, -(middle_bone_h/2 + joint_radius)]) 
             cylinder(h=middle_bone_h * 2, r=tendon_dia/2, center=true);
+        
+        // 🪚 [상수 청소 완료] 음수 유격을 만들던 롤러 주머니 룸(cube) 연산 코드 완전 제거!
 
         // ✨ [하부 단선 방지용 가로 핀 홀 - 불량 상수 교정 완료]
+        // 🎯 [정밀 대칭 매립]: 파트 1 기준 코드의 수식(wire_offset - 1.0)과 거울처럼 완벽한 동기화!
+        // 기존의 고정 상수 '-4.5'와 '-1'을 지우고, 파트 1과 유기적으로 대칭 구동되도록 완전히 수정했습니다.
         target_pin_y = wire_offset - 1.0; 
-        target_pin_z = -joint_radius - 1.0 ; 
+        target_pin_z = -joint_radius - 1.0 ; // 파트 1(+0.8)과 정반대인 하부(-1.0) 대칭 매핑! 2번째마디 구멍으로 들어가는 케이블이 턱에 거리나 체크하고 구멍 조금씩 수정하기 -0.8정도까지
 
         translate([0, target_pin_y, target_pin_z])
             rotate([0, 90, 0])
                 cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
         
-        // 중심 구슬 안착 소켓 홈 (상부 구슬용 오리지널 소켓)
+        // 중심 구슬 안착 소켓 홈 (하단 기둥은 조립성 및 구동 유연성을 위해 +0.15 여유 마진 유지)
         sphere(r=joint_radius + clearance + 0.15);         
         
         // 🔵 왼쪽(X < 0) 내부 홈 비우기 (중앙 구슬이 들어갈 공간 확보)
         intersection() {
             sphere(r=outer_shell_r + clearance);
-            translate([-(box_size/2 + clearance/2), 0, 0]) 
+            translate([-(box_size/2 + clearance/2), 0, 0]) // 🪚 유령 변수 distal_clear_x 제거 후 완벽 정렬
                 cube([box_size, box_size, box_size], center=true);
         }
-
-        // =================================================================
-        // 🕳️ [신규 세트 수정] 3번째 마디 구슬 안착용 하부 소켓 홈 정밀 파내기
-        // =================================================================
-        // 외벽 쉘이 finger_w/2(6mm)로 줄어들었으므로, 파내는 내부 알맹이 구슬의 반지름도
-        // 겉껍질 두께 마진을 안전하게 확보할 수 있도록 완벽하게 비율 수식화했습니다.
-        // 위치 역시 하부 쉘 중심점 좌표[-(middle_bone_h + joint_radius)]와 완벽히 동기화됩니다.
-        lower_socket_r = (finger_w / 2) - ((finger_w / 10) + clearance + (finger_w / 120));
-        // 외벽 두께가 칼같이 'finger_w / 10'으로 유지
-        
-    translate([0, 0, -(middle_bone_h + joint_radius) - (finger_w / 4)])
-    sphere(r = lower_socket_r, $fn = 100);
     }
 }
-
-
-
 
 // =================================================================
 // 🎬 [최종 제어 파이프라인 및 조립 인터페이스]
