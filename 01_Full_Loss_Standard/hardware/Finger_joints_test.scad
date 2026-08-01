@@ -4,9 +4,22 @@
 $fn = 60; 
 
 // 🎯 [1] 마디 및 뼈대 치수 (기하학 핵심)
-finger_w       = 12;    // 손가락 마디의 가로/세로 두께 (기존 12)
-bone_h         = 15;    // 손가락 뼈대 기둥의 수직 길이 (기존 15)
-joint_radius   = finger_w * (5.5 / 12);    // 내부 핵심 구슬(중앙 피벗 구체) 반지름 (기존 5.5)
+finger_w = 12; // [마스터 변수] 손가락 두께 기준값 고정
+
+// 1. 첫째마디 (Proximal Segment - 현재 설계하신 부위)
+// 보통 두께 대비 순수 뼈대 길이는 약 1.8배에서 2배가 가장 적당합니다.
+proximal_bone_h = finger_w * 1.8; // 계산값: 21.6mm (현재 15에서 조금 늘리면 완벽한 인체 비율)
+
+// 2. 중간마디 (Middle Segment - 추후 확장 시)
+// 첫째마디 길이의 약 70% 수준입니다.
+middle_bone_h = proximal_bone_h * 0.7; // 계산값: 15.12mm
+
+// 3. 끝마디 (Distal Segment - 손톱 부위)
+// 첫째마디 길이의 약 50% 수준입니다.
+distal_bone_h   = proximal_bone_h * 0.5; // 계산값: 10.8mm
+
+
+joint_radius   = 5.5;   // 내부 핵심 구슬(중앙 피벗 구체) 반지름 (기존 5.5)
 
 // 📐 [2] 하우징 및 스토퍼 파라메터
 outer_shell_r  = joint_radius + 2.5; // 외벽 껍데기 반지름 (최소 2.0mm 방어벽 자동 연동)
@@ -39,9 +52,9 @@ module proximal_segment() {
 
     difference() {
         union() {
-            // 🟥 메인 위쪽 기둥 골격 (finger_w, bone_h 변수 연동)
-            translate([0, 0, bone_h/2 + joint_radius]) 
-                cube([finger_w, finger_w, bone_h], center=true);
+            // 🟥 메인 위쪽 기둥 골격 (finger_w, proximal_bone_h 변수 연동)
+            translate([0, 0, proximal_bone_h/2 + joint_radius]) 
+                cube([finger_w, finger_w, proximal_bone_h], center=true);
             
             // 🟢 [좌측 감싸기 쉘] X=0 기준 왼쪽(X < 0) 영역만 남겨 구슬을 좌측에서 고정
             difference() {
@@ -70,8 +83,8 @@ module proximal_segment() {
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
         
         // 🛠️ [소프트웨어 동기화] 손바닥(앞쪽)에서 구슬 세로 레일 초입으로 내려오는 수직 와이어 가이드 홀
-        translate([0, wire_offset, bone_h/2 + joint_radius]) 
-            cylinder(h=bone_h * 2, r=tendon_dia/2, center=true);
+        translate([0, wire_offset, proximal_bone_h/2 + joint_radius]) 
+            cylinder(h=proximal_bone_h * 2, r=tendon_dia/2, center=true);
         
         // ✨ [신규 추가: 상부 단선 방지용 가로 핀 홀]
         // 🎯 [정밀 대칭 매립]: 토마토색 마디의 검은 구멍 좌표(-4.5, -joint_radius - 1)와 거울처럼 완벽한 대칭을 이룹니다.
@@ -144,9 +157,9 @@ module distal_segment() {
 
     difference() {
         union() {
-            // 🟥 메인 아래쪽 기둥 골격 (finger_w, bone_h 변수 연동)
-            translate([0, 0, -(bone_h/2 + joint_radius)]) 
-                cube([finger_w, finger_w, bone_h], center=true);
+            // 🟥 메인 아래쪽 기둥 골격 (finger_w, middle_bone_h 변수 연동)
+            translate([0, 0, -(middle_bone_h/2 + joint_radius)]) 
+                cube([finger_w, finger_w, middle_bone_h], center=true);
             
             // 🟢 [우측 감싸기 쉘] X=0 기준 오른쪽(X > 0) 영역만 남겨 구슬을 우측에서 고정
             difference() {
@@ -174,8 +187,8 @@ module distal_segment() {
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
         
         // 🛠️ [소프트웨어 동기화] 손바닥(앞쪽) 하단 기둥으로 탈출하는 메인 수직 와이어 가이드 홀
-        translate([0, wire_offset, -(bone_h/2 + joint_radius)]) 
-            cylinder(h=bone_h * 2, r=tendon_dia/2, center=true);
+        translate([0, wire_offset, -(middle_bone_h/2 + joint_radius)]) 
+            cylinder(h=middle_bone_h * 2, r=tendon_dia/2, center=true);
         
         // 🪚 [상수 청소 완료] 음수 유격을 만들던 롤러 주머니 룸(cube) 연산 코드 완전 제거!
 
@@ -183,7 +196,7 @@ module distal_segment() {
         // 🎯 [정밀 대칭 매립]: 파트 1 기준 코드의 수식(wire_offset - 1.0)과 거울처럼 완벽한 동기화!
         // 기존의 고정 상수 '-4.5'와 '-1'을 지우고, 파트 1과 유기적으로 대칭 구동되도록 완전히 수정했습니다.
         target_pin_y = wire_offset - 1.0; 
-        target_pin_z = -joint_radius - 0.8; // 파트 1(+0.8)과 정반대인 하부(-0.8) 대칭 매핑!
+        target_pin_z = -joint_radius - 1.0 ; // 파트 1(+0.8)과 정반대인 하부(-1.0) 대칭 매핑! 2번째마디 구멍으로 들어가는 케이블이 턱에 거리나 체크하고 구멍 조금씩 수정하기 -0.8정도까지
 
         translate([0, target_pin_y, target_pin_z])
             rotate([0, 90, 0])
@@ -242,6 +255,6 @@ if (view_mode == 2) {
     
     // [우측] 아래쪽 프레임 분해 배치 (bone_h와 joint_radius 수식 연동으로 겹침 원천 차단)
     color("Tomato") 
-        translate([explode_distance, 0, bone_h/2 + joint_radius*2]) 
+        translate([explode_distance, 0, middle_bone_h/2 + joint_radius*2]) 
             rotate([0, 180, 0]) distal_segment(); 
 }
