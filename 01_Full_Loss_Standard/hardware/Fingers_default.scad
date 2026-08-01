@@ -254,6 +254,69 @@ module distal_segment() {
     }
 }
 
+// =================================================================
+// 🦴 [파트 4 수정] 3번째 마디: 최종 끝마디 프레임 (Tip Segment) - 상하 완벽 반전
+// =================================================================
+// 하부의 둥근 결합 쉘 구조를 상부 원점(Z=0)으로 끌어올리고,
+// 네모 기둥 골격 블록이 아래쪽(-Z 방향)으로 자연스럽게 내려가도록 기하학 구조를 정반대로 뒤집었습니다.
+module tip_segment() {
+    roller_pin_d = 1.5;  // 가로 고정 핀 지름 (1.5mm)
+
+    difference() {
+        // [1단계: 겉껍질 메인 골격 형성]
+        union() {
+            // 🟥 메인 끝마디 기둥 골격 (상하 반전 연산)
+            // 기둥 중심축을 아래쪽으로 내려 기둥 블록 전체가 하방을 향하도록 고정합니다.
+            translate([0, 0, -(distal_bone_h/2 + joint_radius)]) 
+                cube([finger_w, finger_w, distal_bone_h], center=true);
+            
+            // 🟢 [상부 배치 쉘] 하부에 고여있던 관절 쉘을 상부 원점(Z=0) 기준으로 끌어올림
+            // 토마토색 하단(우측 벽)과 정확히 엇갈려 감싸쥐도록 왼쪽(X < 0) 벽면 하우징 사수
+            difference() {
+                sphere(r=outer_shell_r);
+                translate([box_size/2 - side_margin + clearance/2, 0, 0]) 
+                    cube([box_size, box_size, box_size], center=true); 
+                
+                // 🪚 [경사 컷 정렬] 관절이 앞으로 구부러질 때 간섭 없이 개방되도록 앞쪽 모서리 컷
+                translate([0, -outer_shell_r, 0]) 
+                    rotate([0, 30, 50])           
+                        cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
+            }
+            
+            // 📐 [스토퍼 C] 손가락이 펴질 때 뒤로 꺾이지 않도록 지탱하는 후방 턱
+            translate([-finger_w/4, outer_shell_r - side_margin, 0]) 
+                cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
+        }
+        
+        // [2단계: 내부 공간 및 관통 통로 최종 파내기]
+        
+        // 🔒 [원점 고정] 하부 관절과 이어질 메인 관통 핀 홀 (Z=0 축 고정)
+        rotate([0, 90, 0]) 
+            cylinder(h=box_size * 2, r=pin_dia/2, center=true);
+        
+        // 🛠️ [수직 동기화] 수직 와이어 가이드 홀 (아래로 뻗은 기둥에 맞춰 관통 범위 하방 이동)
+        translate([0, wire_offset, -(distal_bone_h/2 + joint_radius)]) 
+            cylinder(h=distal_bone_h * 2, r=tendon_dia/2, center=true);
+        
+        // ✨ [단선 방지용 핀 홀] 와이어 레일 초입에 맞춰 콤팩트하게 안착
+        proximal_pin_y = wire_offset - 1.0;
+        proximal_pin_z = joint_radius + 0.8; // 상부 핏에 맞춰 수직 높이 양수(+) 보정
+        
+        translate([0, proximal_pin_y, proximal_pin_z])
+            rotate([0, 90, 0])
+                cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
+        
+        // 🟢 중심 구슬 안착 소켓 홈 (상부 원점으로 칼정렬)
+        sphere(r=joint_radius + clearance + 0.15);         
+        
+        // 🔵 왼쪽 내부 홈 비우기 (중앙 구슬 공간 확보 인터페이스 매칭)
+        intersection() {
+            sphere(r=outer_shell_r + clearance);
+            translate([box_size/2 - inner_clear_x + clearance/2, 0, 0]) 
+                cube([box_size, box_size, box_size], center=true);
+        }
+    }
+}
 
 
 
@@ -263,19 +326,33 @@ module distal_segment() {
 module final_assembled_joint() {
     current_angle = -90 * $t; // 오픈스캐드 자체 애니메이션 대응 (0도 ~ -90도 회전 실시간 구동)
 
-    // [상부 관절 조립라인]
+    // 1. [상부 관절 영역] 1번째 마디(라이트블루) & 1번째 구슬(연두색)
     color("LightBlue") proximal_segment();
     color("Lime") independent_ball_bearing();
 
-    // [하부 관절 전용 - 신규 추가된 두 번째 초록 구슬 안착]
-    // ⚠️ 토마토색 마디가 회전할 때 구슬 축은 제자리에 고정되어 있어야 하므로, 
-    // rotate 외부 공간에 단독 배치하여 하단 관절 중심축 높이로 내려줍니다.
-    translate([0, 0, -(middle_bone_h + joint_radius * 2)])
-        color("Lime") independent_ball_bearing();
-
-    // 세로 레일을 타고 부드럽게 연동되어 회전하는 아래쪽 마디 (토마토색)
-    rotate([current_angle, 0, 0])
+    // 2. 2번째 마디 (토마토색 프레임) - 상부 관절을 축으로 회전
+    rotate([current_angle, 0, 0]) {
         color("Tomato") distal_segment();
+        
+        // =================================================================
+        // 🟢 🔄 [하부 초록 관절 안착] 토마토 하부쉘과 무조건 한 몸으로 결합 구동
+        // =================================================================
+        // 설계자님의 의도대로, 이 두 번째 초록 구슬축은 토마토색 마디 내부에 고정되어 
+        // rotate 괄호 안에서 토마토 마디와 함께 한 치의 오차도 없이 일체형으로 회전 구동합니다.
+        translate([0, 0, -(middle_bone_h + joint_radius * 2)])
+            color("Lime") independent_ball_bearing();
+        
+        // =================================================================
+        // 🆕 🦴 [3번째 마디 안착] 2번째 관절 구슬을 축으로 삼아 독립 연쇄 구동
+        // =================================================================
+        // 토마토색 하단 끝점 높이로 정확히 매핑하여 일체형으로 매달아 줍니다.
+        // 가로축(X축) 기준으로 공중제비 180도를 돌려 소켓 밥그릇 홈의 방향을 하부 구슬 조준으로 일치시키고,
+        // 토마토 마디 대비 끝마디가 자연스러운 스케일로 접히도록 * 0.65 비율을 가동각에 물려줍니다.
+        translate([0, 0, -(middle_bone_h + joint_radius * 2)])
+            rotate([0, 0, 0]) // 👈 설계자님이 명시하신 가로축(X축) 기준 정확한 180도 반전축!
+                rotate([current_angle * 0.65, 0, 0]) // 👈 과도한 꺾임으로 인한 기둥 겹침 방지 및 정방향 굽힘축
+                    color("LightGreen") tip_segment();
+    }
 }
 
 // --- 인스펙션 연산 및 이중 모드 시각화 스위칭 ---
@@ -290,25 +367,32 @@ if (view_mode == 2) {
     }
 } else {
     // 🛠️ 예외/디버그 모드 (view_mode = 3): 각 파트를 분해하여 원점 정렬 상태 인스펙션
-    // 손가락 두께(finger_w)와 기둥 길이(bone_h)에 비례하여 자동으로 멀어지도록 수식화했습니다.
     explode_distance = finger_w * 1.5; // 부품이 양옆으로 벌어질 안전 거리
 
-    // 1. [좌측] 위쪽 프레임 분해 배치
+    // 1. [좌측 외벽] 1번째 마디 분해 배치
     color("LightBlue") 
-        translate([-explode_distance, 0, 0]) proximal_segment(); 
+        translate([-explode_distance * 1.5, 0, 0]) proximal_segment(); 
     
     // 2. [중앙 상단] 첫 번째 제어 구슬 코어 배치
     color("Lime") 
         translate([0, 0, joint_radius]) independent_ball_bearing(); 
         
-    // 3. [중앙 하단 - 신규 추가] 두 번째 제어 구슬 코어 분해 배치
-    // 하단 관절 위치 축 기준에서 시각적 확인이 편하도록 위쪽으로 살짝 폭파 정렬
+    // 3. [중앙 하단 - 동기화 패치] 두 번째 제어 구슬도 정렬 상태 확인을 위해 분해 배치
     color("Lime")
         translate([0, 0, -(middle_bone_h + joint_radius * 2) + joint_radius]) 
             independent_ball_bearing();
 
-    // 4. [우측] 아래쪽 프레임 분해 배치 (bone_h와 joint_radius 수식 연동으로 겹침 원천 차단)
+    // 4. [우측 내벽] 2번째 마디(토마토색) 분해 배치
     color("Tomato") 
         translate([explode_distance, 0, middle_bone_h/2 + joint_radius*2]) 
             rotate([0, 180, 0]) distal_segment(); 
+
+    // 5. [우측 최외벽] 3번째 마디(연두빛 민트색 끝마디) 분해 배치
+    // 가로축(X축) 180도 회전을 기반으로 한 조립 유격 상태를 한눈에 볼 수 있도록 바깥 축에 정렬 폭파시킵니다.
+    color("LightGreen")
+        translate([explode_distance * 2.8, 0, -(middle_bone_h + joint_radius * 2)])
+            rotate([180, 0, 0])
+                tip_segment();
 }
+
+
