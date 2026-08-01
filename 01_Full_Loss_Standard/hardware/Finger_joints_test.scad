@@ -206,13 +206,11 @@ module distal_segment() {
         }
         
         // ⚠️ 상단 전면부 회전 간섭 제거용 경사 컷 (손가락 두께 변수에 맞춰 자동 칼날 크기 조절)
-        translate([0, -joint_radius - 2, joint_radius]) 
-            rotate([-20, 0, 0]) 
+        translate([2, -joint_radius -3, joint_radius -3]) 
+            rotate([-30, 0, 0]) 
                 cube([finger_w * 2, finger_w, finger_w], center=true);
         
-                  
-
-
+ 
     }
 }
 
