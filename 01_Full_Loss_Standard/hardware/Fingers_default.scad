@@ -178,7 +178,7 @@ module distal_segment() {
                         cube([box_size, box_size, box_size], center=true); 
                     
                     translate([0, -outer_shell_r, 0]) 
-                        rotate([0, 30, -50])            
+                        rotate([ 0, -30, -50])            
                             cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
                 }
             }
@@ -400,5 +400,3 @@ if (view_mode == 2) {
             rotate([180, 0, 0])
                 tip_segment();
 }
-
-
