@@ -21,6 +21,13 @@
 * **출력 안정성 확보**: 관절 부위가 열로 인해 서로 붙어버리는 사출 불량을 줄이기 위해, 손가락 프레임을 좌우 커버 쉘로 분할 사출한 후 가로 정중앙 X축 관통 메인 핀(`pin_dia = 2.0`)으로 체결하는 구조를 채택했습니다.
 * **기계적 과신전 방어**: 정상 구동 범위($0^\circ \sim 90^\circ$) 안에서는 정밀 조립 공차(`clearance = 0.25`)를 통해 부드럽게 주행합니다. 외력에 의해 과신전 하중이 발생할 경우, 플라스틱 후방 스토퍼 턱(`stopper_thick = 3`)들이 물리적으로 맞물려 지지해 주는 Wedge-Lock 가드가 작동합니다.
 
+<img style="width: 50%;" alt="image" src="https://github.com/user-attachments/assets/3bbda816-712c-4d4d-97a2-c4b09caf3bb5" /> 
+<img style="width: 50%;" height="708" alt="image" src="https://github.com/user-attachments/assets/c5051dc6-5d06-4fb0-9cbc-e089ef202d33" />
+
+
+
+
+
 ### 3. 블록 내 정밀 좌표 매립형 빨대 롤러 가이드 (Anchor-Positioned Roller Core)
 * **단선 마모 보완**: 와이어 가이드 터널 출구에서 발생하는 날카로운 마찰을 줄이기 위해, 관절 내부 공간에 쇠봉과 빨대 조각을 결합한 자율 회전 롤러 부싱을 매립하는 방식을 제안합니다.
 * **기하학적 텐던 접선 정렬**: 롤러 블록이 와이어를 접선(Tangent) 방향으로 안정적으로 받쳐줄 수 있도록 블록 내부에 계산된 고정 배치 좌표(`target_pin_y`, `target_pin_z`)를 지정했습니다. 와이어가 플라스틱 단면에 직접 닿기 전에 롤러 표면이 궤적을 바깥으로 완만하게 유도하여 다이니마(Dyneema) 섬유선의 수명 향상을 도모했습니다.
