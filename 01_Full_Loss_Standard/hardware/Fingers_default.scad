@@ -6,20 +6,31 @@ $fn = 60;
 // 🎯 [1] 마디 및 뼈대 치수 (기하학 핵심)
 finger_w = 15; // [마스터 변수] 손가락 두께 기준값 고정
 
-// 1. 첫째마디 (Proximal Segment - 현재 설계하신 부위)
-// 보통 두께 대비 순수 뼈대 길이는 약 1.8배에서 2배가 가장 적당합니다.
-proximal_bone_h = finger_w * 1.8; // 계산값: 21.6mm (현재 15에서 조금 늘리면 완벽한 인체 비율)
+// 1. 첫째마디 (Proximal Segment)
+proximal_bone_h = finger_w * 1.8; // 계산값: 21.6mm
 
-// 2. 중간마디 (Middle Segment - 추후 확장 시)
-// 첫째마디 길이의 약 70% 수준입니다.
+// 2. 중간마디 (Middle Segment)
 middle_bone_h = proximal_bone_h * 0.7; // 계산값: 15.12mm
 
 // 3. 끝마디 (Distal Segment - 손톱 부위)
-// 첫째마디 길이의 약 50% 수준입니다.
 distal_bone_h   = proximal_bone_h * 0.5; // 계산값: 10.8mm
 
+// 🔗 [관절 통합 완료]: 상/하단 모든 관절 구슬이 이 하나의 반지름을 완전히 공유합니다.
+joint_radius   = finger_w * (5.5 / 12); // 계산값: 6.875mm
 
-joint_radius   = finger_w * (5.5 / 12); // [수식 동기화] 볼 크기를 손가락 두께에 종속 
+// 🦴 [손등뼈 확장]: 손등 내부로 길게 뻗을 중수골 링크 길이
+metacarpal_bone_h = finger_w * 2.0; // 계산값: 30.0mm 추후 모터위치 체크후 수정하기
+
+
+
+// =================================================================
+// 🆕 🛠️ [스프링 스펙 최종 매핑 - 콘솔 경고 완전 해결]
+// =================================================================
+spring_slot_w = finger_w * 0.6;     // 손가락 두께에 비례하는 스프링 너비 (계산값: 9mm)
+spring_slot_h = 0.8;                // 페트병 두께를 안정적으로 수용할 슬라이딩 틈새 (0.8mm)
+spring_long_tunnel_l = metacarpal_bone_h + proximal_bone_h; // 페트병 판스프링 총 연장 가이드 길이
+
+
 
 // 📐 [2] 하우징 및 스토퍼 파라메터
 outer_shell_r  = joint_radius + 2.5; // 외벽 껍데기 반지름 (최소 2.0mm 방어벽 자동 연동)
@@ -44,68 +55,177 @@ view_mode = 2 ;
 
 
 // =================================================================
-// 🦴 [파트 1] 위쪽 프레임 (Proximal Segment - 좌측 커버 쉘) 라이트블루색
+// 🦴 [손등뼈 최종 확정본] metacarpal_bone - 슬롯 제거 및 후방 스토퍼 신설 완료
+// =================================================================
+module metacarpal_bone() {
+    difference() {
+        // [1단계: 겉껍질 메인 골격 형성 - 슬롯 복원 및 스토퍼 유니온 결합]
+        union() {
+            // 1. 손등 속으로 길게 매립될 메인 손등뼈 뼈대 (속이 꽉 찬 순정 기둥 복원)
+            translate([0, 0, metacarpal_bone_h/2 + joint_radius])
+                cube([finger_w, finger_w, metacarpal_bone_h], center=true);
+            
+            // 2. 🟢 하단 쉘 (outer_shell_r 슬림화 사양 유지)
+            difference() {
+                sphere(r=outer_shell_r); 
+                
+                // [조립 분할 컷]: 원본의 왼쪽 영역(X < 0)을 쳐내는 분할 사양 완벽 유지
+                translate([-(box_size/2 - side_margin + clearance/2), 0, 0])
+                    cube([box_size, box_size, box_size], center=true);
+                
+                // [하단 전방 간섭 제거 경사 컷]
+                translate([0, -outer_shell_r, 0])
+                    rotate([0, 30, -50])
+                        cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
+            }
+
+            // =================================================================
+            // 🆕 📐 [스토퍼 신설]: 반구 뒤편 수동 기계적 락인(Wedge-Lock) 후방 턱
+            // =================================================================
+            // 타 마디의 설계 사양을 완벽히 추종하여 뒤쪽(Y축 양의 방향) 외벽에 
+            // 과신전 방지용 기계적 스토퍼 턱을 유니온으로 일체화시킵니다.
+            translate([ finger_w/4, outer_shell_r - side_margin, 0]) 
+                cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
+        }
+        
+        // [2단계: 내부 공간 및 하단 관통 소켓 통로 최종 파내기]
+        
+        // 🔒 MCP 가로 관통 메인 고정 핀 홀 (가로 방향으로 확실하게 관통)
+        rotate([0, 90, 0])
+            cylinder(h=box_size * 2, r=pin_dia/2, center=true);
+            
+        // 🛠️ 와이어 가이드 통로
+        translate([0, wire_offset, metacarpal_bone_h/2 + joint_radius])
+            cylinder(h=metacarpal_bone_h * 2, r=tendon_dia/2, center=true);
+        
+        
+            
+        // 🟢 중심 표준 구슬 안착용 내측 소켓 홈 파내기
+        sphere(r=joint_radius + clearance + 0.15);
+
+        // 🔵 왼쪽 내부 홈 비우기 (중앙 공유 구슬 유격 공간 확보)
+        intersection() {
+            sphere(r=outer_shell_r + clearance);
+            translate([-(box_size/2 + clearance/2), 0, 0])
+                cube([box_size, box_size, box_size], center=true);
+        }
+        
+        // ✂️ [판스프링 진입 슬롯 차집합 연산 완전 삭제 완료]
+        // 타 손가락 파트와 무결성을 통일하기 위해 기존 큐브 커팅 코드를 제거했습니다.
+    }
+}
+
+
+
+
+// =================================================================
+// 🦴 [파트 1 완벽 개량] 위쪽 프레임 (Proximal Segment) - 상/하단 이중 소켓 쉘 통합
 // =================================================================
 module proximal_segment() {
-    // 🛞 [실물 윤활 고정 핀/빨대 사양 파라메터 지정]
     roller_pin_d = 1.5;  // 구리스+빨대를 씌운 실물 가로 핀 지름 (1.5mm)
 
     difference() {
+        // [1단계: 겉껍질 메인 골격 형성 - 상/하단 유니온 결합]
         union() {
             // 🟥 메인 위쪽 기둥 골격 (finger_w, proximal_bone_h 변수 연동)
             translate([0, 0, proximal_bone_h/2 + joint_radius]) 
                 cube([finger_w, finger_w, proximal_bone_h], center=true);
             
-            // 🟢 [좌측 감싸기 쉘] X=0 기준 왼쪽(X < 0) 영역만 남겨 구슬을 좌측에서 고정
+            // 🟢 [하단부: 원래 설계] X=0 기준 왼쪽(X < 0) 영역 구슬 고정 쉘
             difference() {
                 sphere(r=outer_shell_r);
                 translate([box_size/2 - side_margin + clearance/2, 0, 0]) 
                     cube([box_size, box_size, box_size], center=true); 
                 
-                // =================================================================
-                // 🦴 [파트 1 수정] 위쪽 프레임 하단 쉘 변형 가공
-                // =================================================================
-                // [신규 추가: 전방 스커트 쉘 간섭 제거 경사 컷]
-                // 신 빨간 네모(손바닥 쪽 하단 쉘)를 과감하게 경사로 쳐내어 
-                // 하부 마디가 회전할 때 간섭도 없이 완벽하게 비껴가도록 궤적을 개방
-                translate([0, -outer_shell_r, 0]) // Y축 앞쪽(손바닥 방향) 모서리로 이동
-                    rotate([0, 30, 50])            // 3D 드로잉 지시선 각도와 일치하는 0, 30, 50도 경사 컷
+                // [하단 간섭 제거 경사 컷]
+                translate([0, -outer_shell_r, 0]) 
+                    rotate([0, 30, 50])            
                         cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
             }
             
-            // 📐 [스토퍼 A] 수동 기계적 락인(Wedge-Lock) 후방 턱 (치수 연동)
+            // 📐 [스토퍼 A] 하단 수동 기계적 락인(Wedge-Lock) 후방 턱
             translate([-finger_w/4, outer_shell_r - side_margin, 0]) 
+                cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
+
+            // =================================================================
+            // 🆕 🟢 [상단부 추가]: 신규 빨간 박스 영역 MCP 관절용 상부 좌측 감싸기 쉘
+            // =================================================================
+            // 기둥 맨 윗면 높이(proximal_bone_h + joint_radius)로 정확히 이동하여 
+            // 하단 쉘 구조와 일란성 쌍둥이처럼 완벽한 대칭을 형성합니다.
+            translate([0, 0, proximal_bone_h + joint_radius * 2]) {
+                difference() {
+                    sphere(r=outer_shell_r);
+                    // 좌측 쉘 사양 유지 (오른쪽 절단)
+                    translate([box_size/2 - side_margin + clearance/2, 0, 0]) 
+                        cube([box_size, box_size, box_size], center=true); 
+                    
+                    // [상단 간섭 제거 역방향 경사 컷] 회전 시 상부 손등뼈와의 충돌 방지
+                    translate([0, -outer_shell_r, 0]) 
+                        rotate([0, -30, 50]) // 회전축 간섭 회피용 대칭 각도 가공           
+                            cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
+                }
+            }
+
+            // 📐 [🆕 스토퍼 E] 상부 MCP 관절 수동 기계적 락인 후방 턱
+            // 손가락이 뒤로 꺾이는 과신전을 완벽히 지탱하기 위해 상단 관절 뒤편에도 턱을 형성합니다.
+            translate([-finger_w/4, outer_shell_r - side_margin, proximal_bone_h + joint_radius * 2]) 
                 cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
         }
         
-        // 🔒 [절대 고정] 가로 정중앙 X축 관통 메인 핀 홀 (가로 방향으로 확실하게 관통)
+        // [2단계: 내부 공간 및 상/하단 관통 소켓 통로 최종 파내기]
+        
+        // 🔒 [하단 절대 고정] 가로 정중앙 X축 관통 메인 핀 홀 (Z=0)
         rotate([0, 90, 0]) 
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
         
-        // 🛠️ [소프트웨어 동기화] 손바닥(앞쪽)에서 구슬 세로 레일 초입으로 내려오는 수직 와이어 가이드 홀
+        // 🛠️ 하단 와이어 가이드 홀
         translate([0, wire_offset, proximal_bone_h/2 + joint_radius]) 
             cylinder(h=proximal_bone_h * 2, r=tendon_dia/2, center=true);
         
-        // ✨ [신규 추가: 상부 단선 방지용 가로 핀 홀]
-        // 🎯 [정밀 대칭 매립]: 토마토색 마디의 검은 구멍 좌표(-4.5, -joint_radius - 1)와 거울처럼 완벽한 대칭을 이룹니다.
-        // 세로 터널 중심과 앞벽 사이의 알짜배기 기둥 속 살집에 콤팩트하게 박아 외벽을 완벽히 보호합니다.
-        proximal_pin_y = wire_offset - 1.0 ;
-        proximal_pin_z = joint_radius + 0.8; // 하부 마디(-1.0)와 정반대인 상부(+1.0) 대칭 매핑!
-        
+        // ✨ 하단 단선 방지용 가로 핀 홀
+        proximal_pin_y = wire_offset - 1.0;
+        proximal_pin_z = joint_radius + 0.8; 
         translate([0, proximal_pin_y, proximal_pin_z])
             rotate([0, 90, 0])
                 cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
         
-        sphere(r=joint_radius + clearance);         // 중심 구슬 안착 소켓 홈
+        // 🟢 하단 중심 구슬 안착 소켓 홈
+        sphere(r=joint_radius + clearance);         
         
-        // 🔵 오른쪽(X > 0) 내부 홈 비우기 (중앙 구슬이 들어갈 공간 확보)
+        // 🔵 하단 오른쪽 내부 홈 비우기 (중앙 구슬 공간)
         intersection() {
             sphere(r=outer_shell_r + clearance);
             translate([box_size/2 - inner_clear_x + clearance/2, 0, 0]) 
                 cube([box_size, box_size, box_size], center=true);
         }
-        
-    
+
+        // =================================================================
+        // 🕳️ 🔄 [신규 추가]: 상단 MCP 관절 안착 구형 홈 및 통로 연산
+        // =================================================================
+        // 🟢 상단 중심 구슬 안착 소켓 밥그릇 파내기
+        translate([0, 0, proximal_bone_h + joint_radius * 2])
+            sphere(r=joint_radius + clearance);
+
+        // 🔵 상단 오른쪽 내부 홈 비우기 (기하학 무결성 100% 동기화)
+        translate([0, 0, proximal_bone_h + joint_radius * 2]) {
+            intersection() {
+                sphere(r=outer_shell_r + clearance);
+                translate([box_size/2 - inner_clear_x + clearance/2, 0, 0]) 
+                    cube([box_size, box_size, box_size], center=true);
+            }
+        }
+
+        // 🔒 [상단 절대 고정] 신규 MCP 가로 관통 메인 핀 홀 (가로축 조립 구멍)
+        translate([0, 0, proximal_bone_h + joint_radius * 2])
+            rotate([0, 90, 0]) 
+                cylinder(h=box_size * 2, r=pin_dia/2, center=true);
+
+        // ✨ [상단 대응: 정밀 페트병 판스프링 진입 패스 연산 코어 가이드용 임시 마진]
+        // 상부 관절 초입 핀 홀 좌표 세팅
+        calculated_top_pin_z = (proximal_bone_h + joint_radius) - 1.2;
+        translate([0, proximal_pin_y, calculated_top_pin_z])
+            rotate([0, 90, 0])
+                cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
     }
 }
 
@@ -322,7 +442,7 @@ module tip_segment() {
 
 
 // =================================================================
-// 🎬 [최종 제어 파이프라인 및 조립 인터페이스 - 완벽 리빌딩 마스터 복원]
+// 🎬 [최종 제어 파이프라인 - 시뮬레이션 Y축 겉돎 현상 완전 해결 최종본]
 // =================================================================
 module final_assembled_joint() {
     // 오픈스캐드 자체 애니메이션 대응 (0도 ~ -90도 회전 실시간 구동)
@@ -332,28 +452,37 @@ module final_assembled_joint() {
     color("LightBlue") proximal_segment();
     color("Lime") independent_ball_bearing();
 
-    // 2. 2번째 마디 (토마토색 프레임) - 상부 관절(원점)을 축으로 회전 구동
+    // =================================================================
+    // 🎯 [시뮬레이션 축 교정]: 다른 파트들과 완벽하게 Y축 정렬선을 공유하는 동축 정렬
+    // =================================================================
+    // 🆕 [Y축 제로 복귀]: 완벽하게 설계된 metacarpal_bone의 고유 원점을 온전히 수용하여
+    // 시뮬레이션의 Y축 이동 오프셋을 깔끔하게 0으로 리셋합니다.
+    // 이 패치를 통해 회색 프레임이 아래쪽 모든 손가락 블록들과 완벽하게 일직선상으로 포개어집니다.
+    mcp_align_x = 0;
+    mcp_align_y = 0; // 🎯 [핵심 보정]: 뒤로 밀어내던 오프셋 연산을 지우고 0으로 축 고정!
+    mcp_align_z = proximal_bone_h + joint_radius * 2;
+
+    translate([mcp_align_x, mcp_align_y, mcp_align_z]) {
+        // [워닝 제로 가드]: rotate 안에 기본 각도를 명시하여 주황색 에러 배너를 박멸합니다.
+        rotate([0, 0, 0]) { 
+            rotate([current_angle * -0.3, 0, 0]) {
+                color("LightGray") metacarpal_bone();
+                color("Lime") independent_ball_bearing(); // 공유 표준 구슬
+            }
+        }
+    }
+
+    // 2. [가동 연쇄 영역] 2번째 마디 (토마토색 프레임) - 상부 관절(원점)을 축으로 회전 구동
     rotate([current_angle, 0, 0]) {
         color("Tomato") distal_segment();
         
-        // =================================================================
-        // 🟢 🔄 [하부 초록 관절 안착] 토마토 하부쉘과 한 몸으로 결합 구동
-        // =================================================================
+        // 중간 관절 영역 표준 구슬 안착 구동
         translate([0, 0, -(middle_bone_h + joint_radius * 2)])
-            color("Lime") independent_ball_bearing();
+            color("Lime") independent_ball_bearing(); 
         
-        // =================================================================
-        // 🆕 🦴 [3번째 마디 안착 - 간섭 파고들기 및 결합 해제 근본 해결]
-        // =================================================================
-        // [물리 정렬 1]: 토마토색 하단 끝점 높이(구슬 중심)로 완벽히 흡착 매핑
+        // 3번째 끝마디 (연두빛 민트색 프레임) 연쇄 흡착 안착
         translate([0, 0, -(middle_bone_h + joint_radius * 2)]) {
-            
-            // [물리 정렬 2]: 토마토색 마디가 접힐 때 3번째 마디가 파고들지 않고, 
-            // 바깥 연쇄 텐던 궤적을 그리며 구부러지도록 상대 보정각 제어 (* 0.5 배율 변경)
             rotate([current_angle * 0.5, 0, 0]) {
-                
-                // [물리 정렬 3]: 원래 설계 사양인 '좌측 감싸기 쉘(X < 0)'의 
-                // 소켓 밥그릇 형상이 하부 구슬을 정방향으로 안착하도록 최종 축 정렬
                 rotate([0, 0, 0]) 
                     color("LightGreen") tip_segment();
             }
@@ -361,21 +490,27 @@ module final_assembled_joint() {
     }
 }
 
+
 // =================================================================
 // 🎬 [애니메이션 인스펙션 연산 및 이중 모드 시각화 스위칭 코드]
 // =================================================================
 if (view_mode == 2) {
-    final_assembled_joint(); // 2번: 부품이 완벽히 맞물려 구동되는 실물 모드
+    final_assembled_joint(); // 2번: 실물 구동 모드
 } else if (view_mode == 1) {
-    // 1번: 내부 세로 레일 홈과 가로 핀이 칼같이 90도로 비껴가는지 단면 검제 모드
+    // 1번: 내부 세로 레일 홈과 가로 핀이 비껴가는지 단면 검제 모드
     difference() {
         final_assembled_joint();
-        // 절반을 칼같이 자르기 위해 box_size 기반 정렬 유지
         translate([box_size/2, 0, 0]) cube([box_size, box_size, box_size], center=true); 
     }
 } else {
     // 🛠️ 예외/디버그 모드 (view_mode = 3): 각 파트를 분해하여 원점 정렬 상태 인스펙션
-    explode_distance = finger_w * 1.5; // 부품이 양옆으로 벌어질 안전 거리
+    explode_distance = finger_w * 1.5; 
+    
+    // 분해 시뮬레이션 모드 상에서도 Y축 축선이 이탈하지 않도록 0 정렬 동기화
+    color("LightGray")
+        translate([0, explode_distance, proximal_bone_h + joint_radius * 2 + explode_distance])
+            rotate([0, 0, 0])
+                metacarpal_bone();
 
     // 1. [좌측 외벽] 1번째 마디 분해 배치
     color("LightBlue") 
