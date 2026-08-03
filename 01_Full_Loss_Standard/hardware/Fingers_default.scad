@@ -51,67 +51,79 @@ wire_offset    = -3.5;  // 토크 극대화를 위한 와이어 가이드 Y축 �
 // 2: 정상 가동 및 애니메이션 모드 
 // 1: 이중 단면 인스펙션 투시 모드 
 // 3: 조립 해제 및 파트별 분해 검제 모드
-view_mode = 2 ;
+view_mode = 1 ;
 
 
 // =================================================================
-// 🦴 [손등뼈 최종 확정본] metacarpal_bone - 슬롯 제거 및 후방 스토퍼 신설 완료
+// 🦴 [손등뼈 최종 완성본] metacarpal_bone - 케이블 인 입구 깔때기 가이드 추가
 // =================================================================
 module metacarpal_bone() {
+    roller_pin_d = 1.5;
+    bushing_dia  = 3.0; // 🆕 실물 빨대/튜브 매립용 부싱 외경 스펙 (3mm)
+    bushing_depth = 5.0; // 🆕 부싱이 파고들어 안착할 깊이 (5mm)
+
     difference() {
-        // [1단계: 겉껍질 메인 골격 형성 - 슬롯 복원 및 스토퍼 유니온 결합]
+        // [1단계: 겉껍질 메인 골격 형성]
         union() {
-            // 1. 손등 속으로 길게 매립될 메인 손등뼈 뼈대 (속이 꽉 찬 순정 기둥 복원)
+            // 1. 손등 속으로 길게 매립될 메인 손등뼈 뼈대
             translate([0, 0, metacarpal_bone_h/2 + joint_radius])
                 cube([finger_w, finger_w, metacarpal_bone_h], center=true);
             
             // 2. 🟢 하단 쉘 (outer_shell_r 슬림화 사양 유지)
             difference() {
                 sphere(r=outer_shell_r); 
-                
-                // [조립 분할 컷]: 원본의 왼쪽 영역(X < 0)을 쳐내는 분할 사양 완벽 유지
                 translate([-(box_size/2 - side_margin + clearance/2), 0, 0])
                     cube([box_size, box_size, box_size], center=true);
-                
-                // [하단 전방 간섭 제거 경사 컷]
                 translate([0, -outer_shell_r, 0])
                     rotate([0, 30, -50])
                         cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
             }
 
-            // =================================================================
-            // 🆕 📐 [스토퍼 신설]: 반구 뒤편 수동 기계적 락인(Wedge-Lock) 후방 턱
-            // =================================================================
-            // 타 마디의 설계 사양을 완벽히 추종하여 뒤쪽(Y축 양의 방향) 외벽에 
-            // 과신전 방지용 기계적 스토퍼 턱을 유니온으로 일체화시킵니다.
-            translate([ finger_w/4, outer_shell_r - side_margin, 0]) 
+            // 📐 [스토퍼 사수]: 우측 분할 턱 교차 락킹 구조
+            translate([finger_w/4, outer_shell_r - side_margin, 0]) 
                 cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
         }
         
-        // [2단계: 내부 공간 및 하단 관통 소켓 통로 최종 파내기]
+        // [2단계: 내부 공간 및 하단 관통 소켓/핀홀 최종 차집합 파내기]
         
-        // 🔒 MCP 가로 관통 메인 고정 핀 홀 (가로 방향으로 확실하게 관통)
+        // 🔒 MCP 가로 관통 메인 고정 핀 홀
         rotate([0, 90, 0])
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
             
-        // 🛠️ 와이어 가이드 통로
+        // 🛠️ 와이어 가이드 통로 
         translate([0, wire_offset, metacarpal_bone_h/2 + joint_radius])
             cylinder(h=metacarpal_bone_h * 2, r=tendon_dia/2, center=true);
-        
-        
             
-        // 🟢 중심 표준 구슬 안착용 내측 소켓 홈 파내기
+        // =================================================================
+        // 🆕 ✨ [케이블 인 초입 구조 개량 - 깔때기 및 부싱 슬롯 파내기]
+        // =================================================================
+        // 기둥 최상단 끝면 높이(metacarpal_bone_h + joint_radius)에서 거꾸로 파내려옵니다.
+        top_face_z = metacarpal_bone_h + joint_radius;
+        
+        // 🎯 [패치 A: 튜브 매립용 홈] 튜브 조각이 단단히 고정되도록 직경 3mm 홈을 5mm 깊이로 다운 컷
+        translate([0, wire_offset, top_face_z - bushing_depth/2 + 0.1])
+            cylinder(h=bushing_depth, r=bushing_dia/2, center=true);
+            
+        // 🎯 [패치 B: 나팔 모양 깔때기 입구] 진입로 초입 1.5mm 구간을 부드러운 원뿔(Cone) 형태로 면취
+        translate([0, wire_offset, top_face_z - 0.5])
+            cylinder(h=1.5, r1=tendon_dia/2, r2=bushing_dia/2 + 0.5, center=true);
+            
+        // ✨ 하단 단선 방지용 가로 핀 홀
+        metacarpal_pin_y = wire_offset - 1.0;
+        metacarpal_pin_z = joint_radius + 0.8; 
+        translate([0, metacarpal_pin_y, metacarpal_pin_z])
+            rotate([0, 90, 0])
+                cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
+            
+        // 🟢 중심 표준 구슬 안착용 내측 소켓 홈
         sphere(r=joint_radius + clearance + 0.15);
 
-        // 🔵 왼쪽 내부 홈 비우기 (중앙 공유 구슬 유격 공간 확보)
+        // 🔵 왼쪽 내부 홈 비우기
         intersection() {
             sphere(r=outer_shell_r + clearance);
             translate([-(box_size/2 + clearance/2), 0, 0])
                 cube([box_size, box_size, box_size], center=true);
         }
-        
-        // ✂️ [판스프링 진입 슬롯 차집합 연산 완전 삭제 완료]
-        // 타 손가락 파트와 무결성을 통일하기 위해 기존 큐브 커팅 코드를 제거했습니다.
     }
 }
 
@@ -492,19 +504,23 @@ module final_assembled_joint() {
 
 
 // =================================================================
-// 🎬 [애니메이션 인스펙션 연산 및 이중 모드 시각화 스위칭 코드]
+// 🎬 [애니메이션 인스펙션 연산 및 이중 모드 시각화 스위칭 코드 - 최종 최적화]
 // =================================================================
 if (view_mode == 2) {
-    final_assembled_joint(); // 2번: 실물 구동 모드
+    final_assembled_joint(); // 2번: 부품이 완벽히 맞물려 구동되는 실물 구동 모드
 } else if (view_mode == 1) {
-    // 1번: 내부 세로 레일 홈과 가로 핀이 비껴가는지 단면 검제 모드
+    // 1번: 회색 손등뼈부터 초록색 끝마디까지 전체를 시원하게 반으로 가르는 단면 모드
     difference() {
         final_assembled_joint();
-        translate([box_size/2, 0, 0]) cube([box_size, box_size, box_size], center=true); 
+        
+        // 🎯 [칼날 확장 패치]: 박스 크기를 대폭 늘리고 Z축 고도를 1마디 높이만큼 올려서
+        // 가장 최상단에 확장된 회색 손등뼈 내부 실구멍 터널까지 오차 없이 완벽하게 단면 절단합니다.
+        translate([box_size * 2, 0, proximal_bone_h]) 
+            cube([box_size * 4, box_size * 4, box_size * 8], center=true); 
     }
 } else {
     // 🛠️ 예외/디버그 모드 (view_mode = 3): 각 파트를 분해하여 원점 정렬 상태 인스펙션
-    explode_distance = finger_w * 1.5; 
+    explode_distance = finger_w * 1.5; // 부품이 양옆으로 벌어질 안전 거리
     
     // 분해 시뮬레이션 모드 상에서도 Y축 축선이 이탈하지 않도록 0 정렬 동기화
     color("LightGray")
@@ -536,3 +552,4 @@ if (view_mode == 2) {
             rotate([180, 0, 0])
                 tip_segment();
 }
+
