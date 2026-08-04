@@ -3,32 +3,26 @@
 // =================================================================
 $fn = 60; 
 
-// 🎯 [1] 마디 및 뼈대 치수 (기하학 핵심)
+// 🎯 마디 및 뼈대 치수 (기하학 핵심)
 finger_w = 15; // [마스터 변수] 손가락 두께 기준값 고정
 
-// 1. 첫째마디 (Proximal Segment)
-proximal_bone_h = finger_w * 1.8; // 계산값: 21.6mm
-
-// 2. 중간마디 (Middle Segment)
-middle_bone_h = proximal_bone_h * 0.7; // 계산값: 15.12mm
-
-// 3. 끝마디 (Distal Segment - 손톱 부위)
-distal_bone_h   = proximal_bone_h * 0.5; // 계산값: 10.8mm
-
-// 🔗 [관절 통합 완료]: 상/하단 모든 관절 구슬이 이 하나의 반지름을 완전히 공유합니다.
-joint_radius   = finger_w * (5.5 / 12); // 계산값: 6.875mm
-
-// 🦴 [손등뼈 확장]: 손등 내부로 길게 뻗을 중수골 링크 길이
-metacarpal_bone_h = finger_w * 2.0; // 계산값: 30.0mm 추후 모터위치 체크후 수정하기
-
-
+proximal_bone_h   = finger_w * 1.8; // 계산값: 21.6mm
+middle_bone_h     = proximal_bone_h * 0.7; // 계산값: 15.12mm
+distal_bone_h     = proximal_bone_h * 0.5; // 계산값: 10.8mm
+joint_radius      = finger_w * (5.5 / 12); // 계산값: 6.875mm
+metacarpal_bone_h = finger_w * 2.5; // 계산값: 37.5mm
 
 // =================================================================
-// 🆕 🛠️ [스프링 스펙 최종 매핑 - 콘솔 경고 완전 해결]
+// 🆕 🛠️ [가이드 타워 및 판스프링 관통 규격 최종 매핑]
 // =================================================================
-spring_slot_w = finger_w * 0.6;     // 손가락 두께에 비례하는 스프링 너비 (계산값: 9mm)
-spring_slot_h = 0.8;                // 페트병 두께를 안정적으로 수용할 슬라이딩 틈새 (0.8mm)
-spring_long_tunnel_l = metacarpal_bone_h + proximal_bone_h; // 페트병 판스프링 총 연장 가이드 길이
+
+spring_slot_w     = finger_w * 0.6;     // 외부 가이드 타워 기둥을 관통할 슬롯 너비 (9mm)
+spring_slot_h     = 0.8;                // 페트병 판스프링이 주행할 슬롯 틈새 두께 (0.8mm)
+
+guide_tower_w     = finger_w - (finger_w*0.2); // 타워 좌우 폭
+guide_tower_thick = finger_w / 3 ;                // 판스프링 장력을 버텨낼 타워 전후(Y축) 두께 현 기준 5미리
+guide_tower_h     = joint_radius * 3.2; // 순정 후방 스토퍼 위로 우뚝 솟구칠 타워 높이 스펙
+
 
 
 
@@ -53,23 +47,22 @@ wire_offset    = -3.5;  // 토크 극대화를 위한 와이어 가이드 Y축 �
 // 3: 조립 해제 및 파트별 분해 검제 모드
 view_mode = 1 ;
 
-
 // =================================================================
-// 🦴 [손등뼈 최종 완성본] metacarpal_bone - 케이블 인 입구 깔때기 가이드 추가
+// 🦴 [손등뼈 최종 확정본] metacarpal_bone - 세로축 수직 관통 슬롯 터널 완성
 // =================================================================
 module metacarpal_bone() {
     roller_pin_d = 1.5;
-    bushing_dia  = 3.0; // 🆕 실물 빨대/튜브 매립용 부싱 외경 스펙 (3mm)
-    bushing_depth = 5.0; // 🆕 부싱이 파고들어 안착할 깊이 (5mm)
+    bushing_dia  = 3.0; 
+    bushing_depth = 5.0; 
 
     difference() {
-        // [1단계: 겉껍질 메인 골격 형성]
+        // [1단계: 겉껍질 메인 골격 형성 - 순정 네모 기둥 & 가이드 블록 유니온]
         union() {
-            // 1. 손등 속으로 길게 매립될 메인 손등뼈 뼈대
+            // 1. 🟥 순정 네모 손등뼈 뼈대 기둥
             translate([0, 0, metacarpal_bone_h/2 + joint_radius])
                 cube([finger_w, finger_w, metacarpal_bone_h], center=true);
             
-            // 2. 🟢 하단 쉘 (outer_shell_r 슬림화 사양 유지)
+            // 2. 🟢 하단 소켓 쉘 
             difference() {
                 sphere(r=outer_shell_r); 
                 translate([-(box_size/2 - side_margin + clearance/2), 0, 0])
@@ -79,53 +72,52 @@ module metacarpal_bone() {
                         cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
             }
 
-            // 📐 [스토퍼 사수]: 우측 분할 턱 교차 락킹 구조
+            // 📐 [순정 스토퍼 사수] 반구 뒤편 과신전 방지 턱 
             translate([finger_w/4, outer_shell_r - side_margin, 0]) 
                 cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
+
+            // 🎯 [순정 가이드 블록 안착 스펙 완벽 사수] 
+            translate([0, finger_w/2 + (guide_tower_thick/2), joint_radius + (metacarpal_bone_h * 0.5)])
+                cube([guide_tower_w, guide_tower_thick, guide_tower_h], center=true);
         }
         
         // [2단계: 내부 공간 및 하단 관통 소켓/핀홀 최종 차집합 파내기]
-        
-        // 🔒 MCP 가로 관통 메인 고정 핀 홀
-        rotate([0, 90, 0])
+        rotate([0, 90, 0]) 
             cylinder(h=box_size * 2, r=pin_dia/2, center=true);
             
-        // 🛠️ 와이어 가이드 통로 
-        translate([0, wire_offset, metacarpal_bone_h/2 + joint_radius])
+        translate([0, wire_offset, metacarpal_bone_h/2 + joint_radius]) 
             cylinder(h=metacarpal_bone_h * 2, r=tendon_dia/2, center=true);
-            
-        // =================================================================
-        // 🆕 ✨ [케이블 인 초입 구조 개량 - 깔때기 및 부싱 슬롯 파내기]
-        // =================================================================
-        // 기둥 최상단 끝면 높이(metacarpal_bone_h + joint_radius)에서 거꾸로 파내려옵니다.
-        top_face_z = metacarpal_bone_h + joint_radius;
         
-        // 🎯 [패치 A: 튜브 매립용 홈] 튜브 조각이 단단히 고정되도록 직경 3mm 홈을 5mm 깊이로 다운 컷
-        translate([0, wire_offset, top_face_z - bushing_depth/2 + 0.1])
-            cylinder(h=bushing_depth, r=bushing_dia/2, center=true);
+        top_face_z = metacarpal_bone_h + joint_radius;
+        translate([0, wire_offset, top_face_z - bushing_depth/2 + 0.1]) cylinder(h=bushing_depth, r=bushing_dia/2, center=true);
+        translate([0, wire_offset, top_face_z - 0.5]) cylinder(h=1.5, r1=tendon_dia/2, r2=bushing_dia/2 + 0.5, center=true);
             
-        // 🎯 [패치 B: 나팔 모양 깔때기 입구] 진입로 초입 1.5mm 구간을 부드러운 원뿔(Cone) 형태로 면취
-        translate([0, wire_offset, top_face_z - 0.5])
-            cylinder(h=1.5, r1=tendon_dia/2, r2=bushing_dia/2 + 0.5, center=true);
-            
-        // ✨ 하단 단선 방지용 가로 핀 홀
-        metacarpal_pin_y = wire_offset - 1.0;
-        metacarpal_pin_z = joint_radius + 0.8; 
-        translate([0, metacarpal_pin_y, metacarpal_pin_z])
-            rotate([0, 90, 0])
-                cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
-            
-        // 🟢 중심 표준 구슬 안착용 내측 소켓 홈
         sphere(r=joint_radius + clearance + 0.15);
-
-        // 🔵 왼쪽 내부 홈 비우기
         intersection() {
             sphere(r=outer_shell_r + clearance);
-            translate([-(box_size/2 + clearance/2), 0, 0])
-                cube([box_size, box_size, box_size], center=true);
+            translate([-(box_size/2 + clearance/2), 0, 0]) cube([box_size, box_size, box_size], center=true);
         }
+        
+        metacarpal_pin_y = wire_offset - 1.0;
+        metacarpal_pin_z = joint_radius + 0.8; 
+        translate([0, metacarpal_pin_y, metacarpal_pin_z]) 
+            rotate([0, 90, 0]) 
+                cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
+
+        // =================================================================
+        // 🆕 🕳️ [기하학 보정: 세로축 수직 관통 판스프링 터널 슬롯]
+        // =================================================================
+        // 🎯 [위상 반전 패치]: 앞뒤로 깎던 칼날 큐브를 Z축 세로 방향으로 길게 세워 배치합니다!
+        // Y축 두께는 판스프링 두께 스펙인 `spring_slot_h`로 제한하여 기둥 본체를 완벽히 보호하고,
+        // Z축 높이를 길게 늘려(`guide_tower_h + 10`) 가이드 블록 내부를 위아래로 시원하게 관통시킵니다.
+        mcp_tunnel_y = finger_w/2 + (guide_tower_thick/2);
+        mcp_tunnel_z = joint_radius + (metacarpal_bone_h * 0.5);
+        
+        translate([0, mcp_tunnel_y, mcp_tunnel_z])
+            cube([spring_slot_w + clearance, spring_slot_h + clearance, guide_tower_h + 10], center=true);
     }
 }
+
 
 
 
@@ -178,11 +170,23 @@ module proximal_segment() {
                 }
             }
 
-            // 📐 [🆕 스토퍼 E] 상부 MCP 관절 수동 기계적 락인 후방 턱
-            // 손가락이 뒤로 꺾이는 과신전을 완벽히 지탱하기 위해 상단 관절 뒤편에도 턱을 형성합니다.
+                       // 📐 [스토퍼 E] 상부 MCP 관절 수동 기계적 락인 후방 턱
             translate([-finger_w/4, outer_shell_r - side_margin, proximal_bone_h + joint_radius * 2]) 
                 cube([finger_w/2 - clearance/2, stopper_thick, joint_radius * 2], center=true);
+
+            // =================================================================
+            // 🆕 🎯 [1마디 가이드 블록 뼈대 안착 - 무결점 솟아오름 구조]
+            // =================================================================
+            // 손등뼈 모듈과 완벽하게 1자 동축 정렬선을 형성하도록 배치합니다.
+            // 상하단 반구형 소켓 쉘 두께(outer_shell_r)를 영구 보호하기 위해 
+            // 안전 마진(safe_zone_l) 수식 범위 내에만 타워가 솟아오르도록 방어합니다.
+            safe_zone_l = proximal_bone_h - (outer_shell_r * 2); 
+            tower_l      = safe_zone_l * 0.95; // 안전 지대의 95% 스케일로 기둥 길이 제어
+            
+            translate([0, finger_w/2 + (guide_tower_thick/2), proximal_bone_h/2 + joint_radius])
+                cube([guide_tower_w, guide_tower_thick, tower_l], center=true);
         }
+
         
         // [2단계: 내부 공간 및 상/하단 관통 소켓 통로 최종 파내기]
         
@@ -227,19 +231,30 @@ module proximal_segment() {
             }
         }
 
-        // 🔒 [상단 절대 고정] 신규 MCP 가로 관통 메인 핀 홀 (가로축 조립 구멍)
-        translate([0, 0, proximal_bone_h + joint_radius * 2])
-            rotate([0, 90, 0]) 
-                cylinder(h=box_size * 2, r=pin_dia/2, center=true);
-
-        // ✨ [상단 대응: 정밀 페트병 판스프링 진입 패스 연산 코어 가이드용 임시 마진]
-        // 상부 관절 초입 핀 홀 좌표 세팅
+           // [상단 대응: 정밀 페트병 판스프링 진입 패스 연산 코어 가이드용 임시 마진]
         calculated_top_pin_z = (proximal_bone_h + joint_radius) - 1.2;
         translate([0, proximal_pin_y, calculated_top_pin_z])
             rotate([0, 90, 0])
                 cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
+
+        // =================================================================
+        // 🆕 🕳️ [기하학 매핑 완료: 1마디 세로축 수직 관통 판스프링 터널 슬롯]
+        // =================================================================
+        // 🎯 [위상 동기화]: 칼날 큐브를 Z축 세로 방향으로 길게 세워 배치합니다!
+        // Y축 두께는 판스프링 두께 스펙인 `spring_slot_h + clearance` (0.8mm+공차)로 제한하여
+        // 1마디 순정 네모 본체를 완벽하게 보호하고 오직 등면 가이드 블록만 수직으로 터널링합니다.
+        // 고도 마진은 상하단 쉘 파손을 완벽히 차단했던 안전 뼈대 길이(`tower_l`)를 그대로 공유합니다.
+        mcp_tunnel_y = finger_w/2 + (guide_tower_thick/2);
+        mcp_tunnel_z = proximal_bone_h/2 + joint_radius;
+        
+        safe_zone_l  = proximal_bone_h - (outer_shell_r * 2); 
+        tower_l       = safe_zone_l * 0.95; // 쉘 충돌 방지용 검증된 타워 고도 스펙 공유
+
+        translate([0, mcp_tunnel_y, mcp_tunnel_z])
+            cube([spring_slot_w + clearance, spring_slot_h + clearance, tower_l + 0.2], center=true);
     }
 }
+
 
 
 
