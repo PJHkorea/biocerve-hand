@@ -99,7 +99,7 @@ module metacarpal_bone() {
         }
         
         metacarpal_pin_y = wire_offset - 1.0;
-        metacarpal_pin_z = joint_radius + 1.0;  //단선 방지 구멍 위치는 1.0 내외로 체크후 수정
+        metacarpal_pin_z = joint_radius + 1.0;  // 단선 방지 구멍 위치는 1.0 내외로 체크후 수정
         translate([0, metacarpal_pin_y, metacarpal_pin_z]) 
             rotate([0, 90, 0]) 
                 cylinder(h=finger_w + 2, r=roller_pin_d/2, center=true);
