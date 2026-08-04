@@ -291,10 +291,9 @@ module independent_ball_bearing() {
 
 
 // =================================================================
-// 🦴 [완벽 정렬] 아래쪽 프레임 (Distal Segment - 우측 커버 쉘) 토마토색
+// 🦴 [완벽 정렬] 아래쪽 프레임 (middle_segment - 우측 커버 쉘) 토마토색
 // =================================================================
-module distal_segment() {
-    distal_clear_x = 0.0;                    // 왼쪽 내부 홈 비우기용 X축 오프셋
+module middle_segment() {
     roller_pin_d = 1.5;  // 가로 고정 핀 지름 (1.5mm)
 
     difference() {
@@ -501,7 +500,7 @@ module final_assembled_joint() {
 
     // 2. [가동 연쇄 영역] 2번째 마디 (토마토색 프레임) - 상부 관절(원점)을 축으로 회전 구동
     rotate([current_angle, 0, 0]) {
-        color("Tomato") distal_segment();
+        color("Tomato") middle_segment();
         
         // 중간 관절 영역 표준 구슬 안착 구동
         translate([0, 0, -(middle_bone_h + joint_radius * 2)])
@@ -559,7 +558,7 @@ if (view_mode == 2) {
     // 4. [우측 내벽] 2번째 마디(토마토색) 분해 배치
     color("Tomato") 
         translate([explode_distance, 0, middle_bone_h/2 + joint_radius*2]) 
-            rotate([0, 180, 0]) distal_segment(); 
+            rotate([0, 180, 0]) middle_segment(); 
 
     // 5. [우측 최외벽] 3번째 마디(연두빛 민트색 끝마디) 분해 배치
     color("LightGreen")
