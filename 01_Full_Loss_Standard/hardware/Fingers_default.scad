@@ -428,7 +428,7 @@ module tip_segment() {
                 
                 // 🪚 [경사 컷 정렬]: 왼쪽 쉘의 앞쪽 모서리가 간섭 없이 비껴가도록 각도 보정 (0, 55, 50)
                 translate([0, -outer_shell_r, 0]) 
-                    rotate([0, 55, 50])           
+                    rotate([0, 75, 50])           
                         cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
             }
             
