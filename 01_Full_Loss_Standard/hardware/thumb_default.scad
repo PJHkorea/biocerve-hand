@@ -291,12 +291,10 @@ module independent_ball_bearing() {
 
 
 // =================================================================
-// 🦴 [파트 3] 아래쪽 프레임 (Distal Segment - 우측 커버 쉘) 토마토색
+// 🦴 [파트 3] 아래쪽 프레임 ( middle_segment - 우측 커버 쉘) 토마토색
 // =================================================================
-module distal_segment() {
-    // 🪚 [상수 청소 완료] 파트 1에 존재하지 않는 쓰이지 않는 chamfer 계열 변수 3줄 완벽 제거!
-    distal_clear_x = 0.0;                    // 왼쪽 내부 홈 비우기용 X축 오프셋 (기존 0 적용)
-
+module middle_segment() {
+   
     // 🛞 [실물 핀 스펙 마스터 파라메터] 파트 1의 roller_pin_d 규격과 정확히 일치시킴
     roller_pin_d = 1.5;  // 가로 고정 핀 지름 (1.5mm)
 
@@ -397,7 +395,7 @@ module final_assembled_joint() {
     // 🎡 [엄지 전용 가동 연쇄 영역]: 2마디(토마토색) 관절 구동 매커니즘 완결
     // =================================================================
     rotate([current_angle, 0, 0]) {
-        color("Tomato") distal_segment();
+        color("Tomato") middle_segment();
         
         // ✂️ [엄지 패치 영구 적용]: 
         // 토마토색 마디 내부에 이미 구슬 코어가 완벽히 매칭되어 출력되므로,
@@ -450,7 +448,7 @@ if (view_mode == 2) {
     // 4. [우측 배치]: 2번째 마디(토마토색 - 최종 마디)
     color("Tomato") 
         translate([explode_distance, 0, 0]) 
-            distal_segment(); 
+            middle_segment(); 
 
     // ✂️ 일반 손가락용 3마디(tip_segment) 잔재 데이터 완전 삭제 완료
 }
