@@ -25,6 +25,7 @@
 
 <img style="width: 50%;" alt="image" src="https://github.com/user-attachments/assets/3bbda816-712c-4d4d-97a2-c4b09caf3bb5" /> 
 <img style="width: 50%;" height="708" alt="image" src="https://github.com/user-attachments/assets/c5051dc6-5d06-4fb0-9cbc-e089ef202d33" />
+<img style="width: 50%;" alt="image" src="https://github.com/user-attachments/assets/77ae59f5-fdf0-4f6d-9835-7c90265093b0" />
 
 
 ### 3. 블록 내 정밀 좌표 매립형 빨대 롤러 가이드 (Anchor-Positioned Roller Core)
