@@ -45,7 +45,7 @@ wire_offset    = -3.5;  // 토크 극대화를 위한 와이어 가이드 Y축 �
 // 2: 정상 가동 및 애니메이션 모드 
 // 1: 이중 단면 인스펙션 투시 모드 
 // 3: 조립 해제 및 파트별 분해 검제 모드
-view_mode = 2 ;
+view_mode = 1 ;
 
 // =================================================================
 // 🦴 [손등뼈 최종 확정본] metacarpal_bone - 세로축 수직 관통 슬롯 터널 완성
@@ -68,7 +68,7 @@ module metacarpal_bone() {
                 translate([-(box_size/2 - side_margin + clearance/2), 0, 0])
                     cube([box_size, box_size, box_size], center=true);
                 translate([0, -outer_shell_r, 0])
-                    rotate([0, 30, -50])
+                    rotate([0, 65, -50])
                         cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
             }
 
