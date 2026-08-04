@@ -68,7 +68,7 @@ module metacarpal_bone() {
                 translate([-(box_size/2 - side_margin + clearance/2), 0, 0])
                     cube([box_size, box_size, box_size], center=true);
                 translate([0, -outer_shell_r, 0])
-                    rotate([0, 30, -50])
+                    rotate([0, 65, -50])
                         cube([finger_w * 2, finger_w, joint_radius * 2], center=true);
             }
 
